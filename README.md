@@ -2,12 +2,14 @@
 An operator that uses the restic backup tools to Backup/Restore/Migration from k8s PVC to S3/Minio/Ceph/NFS by restic backup tool
 
 ## Description
-There are three type API:
+There are four API:
 
 - `GroupVersion: storage.hybfkuf.io/v1alpha1, Kind: Backup`
 - `GroupVersion: storage.hybfkuf.io/v1alpha1, Kind: Restore`
 - `GroupVersion: storage.hybfkuf.io/v1alpha1, Kind: Migration`
 - `GroupVersion: networking.hybfkuf.io/v1alpha1, Kind: Traffic`
+
+API description:
 
 ## Getting Started
 You’ll need a Kubernetes cluster to run against. You can use [KIND](https://sigs.k8s.io/kind) to get a local cluster for testing, or run against a remote cluster.
