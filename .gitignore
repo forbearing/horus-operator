@@ -1,0 +1,7 @@
+*.DS_Store
+*.swp
+*.bak
+*.nogit
+*.nopush
+*.nosync
+*rsync.sh
