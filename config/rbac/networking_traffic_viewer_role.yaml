@@ -1,0 +1,20 @@
+# permissions for end users to view traffics.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: traffic-viewer-role
+rules:
+- apiGroups:
+  - networking.hybfkuf.io
+  resources:
+  - traffics
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - networking.hybfkuf.io
+  resources:
+  - traffics/status
+  verbs:
+  - get

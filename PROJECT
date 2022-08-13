@@ -1,9 +1,38 @@
 domain: hybfkuf.io
 layout:
 - go.kubebuilder.io/v3
+multigroup: true
 plugins:
   manifests.sdk.operatorframework.io/v2: {}
   scorecard.sdk.operatorframework.io/v2: {}
 projectName: horus-operator
 repo: github.com/forbearing/horus-operator
+resources:
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: hybfkuf.io
+  group: storage
+  kind: Backup
+  path: github.com/forbearing/horus-operator/apis/storage/v1alpha1
+  version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: hybfkuf.io
+  group: storage
+  kind: Restore
+  path: github.com/forbearing/horus-operator/apis/storage/v1alpha1
+  version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: hybfkuf.io
+  group: networking
+  kind: Traffic
+  path: github.com/forbearing/horus-operator/apis/networking/v1alpha1
+  version: v1alpha1
 version: "3"
