@@ -2,11 +2,12 @@
 An operator that uses the restic backup tools to Backup/Restore/Migration from k8s PVC to S3/Minio/Ceph/NFS by restic backup tool
 
 ## Description
-There are four API:
+There are five API:
 
 - `GroupVersion: storage.hybfkuf.io/v1alpha1, Kind: Backup`
 - `GroupVersion: storage.hybfkuf.io/v1alpha1, Kind: Restore`
 - `GroupVersion: storage.hybfkuf.io/v1alpha1, Kind: Migration`
+- `GroupVersion: storage.hybfkuf.io/v1alpha1, Kind: Clone`
 - `GroupVersion: networking.hybfkuf.io/v1alpha1, Kind: Traffic`
 
 API description:

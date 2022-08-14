@@ -1,0 +1,24 @@
+# permissions for end users to edit clones.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: clone-editor-role
+rules:
+- apiGroups:
+  - storage.hybfkuf.io
+  resources:
+  - clones
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - storage.hybfkuf.io
+  resources:
+  - clones/status
+  verbs:
+  - get

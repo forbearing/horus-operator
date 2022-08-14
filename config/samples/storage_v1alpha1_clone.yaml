@@ -1,0 +1,6 @@
+apiVersion: storage.hybfkuf.io/v1alpha1
+kind: Clone
+metadata:
+  name: clone-sample
+spec:
+  # TODO(user): Add fields here

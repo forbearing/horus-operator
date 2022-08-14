@@ -3,4 +3,5 @@ resources:
 - storage_v1alpha1_backup.yaml
 - storage_v1alpha1_restore.yaml
 - networking_v1alpha1_traffic.yaml
+- storage_v1alpha1_clone.yaml
 #+kubebuilder:scaffold:manifestskustomizesamples

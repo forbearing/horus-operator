@@ -71,13 +71,13 @@ const (
 
 // BackupTo defines where the data shoud be backup to
 type BackupTo struct {
-	NFS        *corev1.NFSVolumeSource                   `json:"nfs"`
-	PVC        *corev1.PersistentVolumeClaimVolumeSource `json:"pvc"`
-	CephFS     *corev1.CephFSVolumeSource                `json:"cephfs"`
-	S3         *S3                                       `json:"s3"`
-	RestServer *RestServer                               `json:"restServer"`
-	SFTP       *SFTP                                     `json:"sftp"`
-	Rclone     *Rclone                                   `json:"rclone"`
+	NFS        *NFS        `json:"nfs"`
+	PVC        *PVC        `json:"pvc"`
+	CephFS     *CephFS     `json:"cephfs"`
+	S3         *S3         `json:"s3"`
+	RestServer *RestServer `json:"restServer"`
+	SFTP       *SFTP       `json:"sftp"`
+	Rclone     *Rclone     `json:"rclone"`
 }
 
 type NFS struct {
