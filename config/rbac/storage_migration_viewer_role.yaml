@@ -1,0 +1,20 @@
+# permissions for end users to view migrations.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: migration-viewer-role
+rules:
+- apiGroups:
+  - storage.hybfkuf.io
+  resources:
+  - migrations
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - storage.hybfkuf.io
+  resources:
+  - migrations/status
+  verbs:
+  - get

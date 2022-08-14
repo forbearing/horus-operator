@@ -44,4 +44,13 @@ resources:
   kind: Clone
   path: github.com/forbearing/horus-operator/apis/storage/v1alpha1
   version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: hybfkuf.io
+  group: storage
+  kind: Migration
+  path: github.com/forbearing/horus-operator/apis/storage/v1alpha1
+  version: v1alpha1
 version: "3"

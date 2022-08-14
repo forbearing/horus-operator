@@ -1,0 +1,182 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  creationTimestamp: null
+  name: manager-role
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - backup.finleap.cloud
+  resources:
+  - consulbackupplans
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - backup.finleap.cloud
+  resources:
+  - consulbackupplans/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - backup.finleap.cloud
+  resources:
+  - mongodbbackupplans
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - backup.finleap.cloud
+  resources:
+  - mongodbbackupplans/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - batch
+  resources:
+  - cronjobs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - networking.hybfkuf.io
+  resources:
+  - traffics
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - networking.hybfkuf.io
+  resources:
+  - traffics/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - networking.hybfkuf.io
+  resources:
+  - traffics/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - storage.hybfkuf.io
+  resources:
+  - backups
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - storage.hybfkuf.io
+  resources:
+  - backups/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - storage.hybfkuf.io
+  resources:
+  - backups/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - storage.hybfkuf.io
+  resources:
+  - clones
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - storage.hybfkuf.io
+  resources:
+  - clones/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - storage.hybfkuf.io
+  resources:
+  - clones/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - storage.hybfkuf.io
+  resources:
+  - restores
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - storage.hybfkuf.io
+  resources:
+  - restores/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - storage.hybfkuf.io
+  resources:
+  - restores/status
+  verbs:
+  - get
+  - patch
+  - update

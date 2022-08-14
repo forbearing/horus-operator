@@ -49,7 +49,7 @@ type BackupSpec struct {
 	BackupTimeout metav1.Time `json:"backupTimeout"`
 
 	// Environment variable passed to backup program.
-	Env []corev1.EnvVar
+	Env []corev1.EnvVar `json:"env"`
 }
 
 // BackupFrom defines where the data should backup from
@@ -98,7 +98,7 @@ type PVC struct {
 	//VolumeName string `json:"volumeName"`
 	//// AccessModes contains the desired access modes the volume should have.
 	//AccessModes []corev1.PersistentVolumeAccessMode `json:"accessModes"`
-	corev1.PersistentVolumeClaim
+	corev1.PersistentVolumeClaim `json:"persistentVolumeClaim"`
 }
 
 type CephFS struct {
