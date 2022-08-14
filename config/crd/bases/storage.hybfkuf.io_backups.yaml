@@ -58,6 +58,7 @@ spec:
                   Server, RestServer'
                 properties:
                   cephfs:
+                    description: backup to CephFS
                     properties:
                       credentialName:
                         description: 'secet.data should containe three field: user,
@@ -78,6 +79,7 @@ spec:
                     - path
                     type: object
                   nfs:
+                    description: backup to nfs server
                     properties:
                       path:
                         description: path that is exported by the NFS server.
@@ -91,6 +93,7 @@ spec:
                     - server
                     type: object
                   pvc:
+                    description: backup to PersistentVolumeClaim
                     properties:
                       persistentVolumeClaim:
                         description: // Name is this PersistentVolumeClaim name. Name
@@ -403,6 +406,7 @@ spec:
                     - persistentVolumeClaim
                     type: object
                   rclone:
+                    description: backup to rclone
                     properties:
                       address:
                         type: string
@@ -413,6 +417,7 @@ spec:
                     - path
                     type: object
                   restServer:
+                    description: backup to rest server
                     properties:
                       address:
                         type: string
@@ -435,6 +440,7 @@ spec:
                     - port
                     type: object
                   s3:
+                    description: backup to S3
                     properties:
                       bucket:
                         type: string
@@ -462,6 +468,7 @@ spec:
                     - region
                     type: object
                   sftp:
+                    description: backup to sftp
                     properties:
                       address:
                         type: string
@@ -483,14 +490,6 @@ spec:
                     - path
                     - port
                     type: object
-                required:
-                - cephfs
-                - nfs
-                - pvc
-                - rclone
-                - restServer
-                - s3
-                - sftp
                 type: object
               env:
                 description: Environment variable passed to backup program.
@@ -607,9 +606,7 @@ spec:
                 type: string
             required:
             - backupFrom
-            - backupTimeout
             - backupTo
-            - env
             - schedule
             type: object
           status:

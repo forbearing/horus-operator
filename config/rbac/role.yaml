@@ -157,6 +157,32 @@ rules:
 - apiGroups:
   - storage.hybfkuf.io
   resources:
+  - migrations
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - storage.hybfkuf.io
+  resources:
+  - migrations/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - storage.hybfkuf.io
+  resources:
+  - migrations/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - storage.hybfkuf.io
+  resources:
   - restores
   verbs:
   - create

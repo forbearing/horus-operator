@@ -29,9 +29,9 @@ type BackupSpec struct {
 	// The schedule in Cron format, see https://en.wikipedia.org/wiki/Cron.
 	Schedule string `json:"schedule"`
 
-	// +optional
 	// The number of backup to be retained. Value must be non-negative interger.
 	// Default to 0, and means keep all backups.
+	// +optional
 	Retention uint64 `json:"retention"`
 
 	// BackupFrom specifies where the data should be backup from
@@ -46,9 +46,11 @@ type BackupSpec struct {
 	BackupTo *BackupTo `json:"backupTo"`
 
 	// BackupTimeout
+	// +optional
 	BackupTimeout metav1.Time `json:"backupTimeout"`
 
 	// Environment variable passed to backup program.
+	// +optional
 	Env []corev1.EnvVar `json:"env"`
 }
 
@@ -71,13 +73,27 @@ const (
 
 // BackupTo defines where the data shoud be backup to
 type BackupTo struct {
-	NFS        *NFS        `json:"nfs"`
-	PVC        *PVC        `json:"pvc"`
-	CephFS     *CephFS     `json:"cephfs"`
-	S3         *S3         `json:"s3"`
+	// backup to nfs server
+	// +optional
+	NFS *NFS `json:"nfs"`
+	// backup to PersistentVolumeClaim
+	// +optional
+	PVC *PVC `json:"pvc"`
+	// backup to CephFS
+	// +optional
+	CephFS *CephFS `json:"cephfs"`
+	// backup to S3
+	// +optional
+	S3 *S3 `json:"s3"`
+	// backup to rest server
+	// +optional
 	RestServer *RestServer `json:"restServer"`
-	SFTP       *SFTP       `json:"sftp"`
-	Rclone     *Rclone     `json:"rclone"`
+	// backup to sftp
+	// +optional
+	SFTP *SFTP `json:"sftp"`
+	// backup to rclone
+	// +optional
+	Rclone *Rclone `json:"rclone"`
 }
 
 type NFS struct {
