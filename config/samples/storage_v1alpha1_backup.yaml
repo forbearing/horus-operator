@@ -3,4 +3,11 @@ kind: Backup
 metadata:
   name: backup-sample
 spec:
-  # TODO(user): Add fields here
+  schedule: "*/1 * * * *"
+  backupFrom:
+    resource: pod
+    name: k8s-tools
+  backupTo:
+    nfs:
+      server: 1.1.1.1
+      path: /srv/nfs/kubedata
