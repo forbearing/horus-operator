@@ -1,5 +1,5 @@
 # horus-operator
-An operator that uses the restic backup tools to Backup/Restore/Migration from k8s PVC to S3/Minio/Ceph/NFS by restic backup tool
+An operator that uses the restic backup tools to Backup/Restore/Migration from k8s PVC to S3/Minio/Ceph/NFS.
 
 ## Description
 There are five API:
