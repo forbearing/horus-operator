@@ -10,6 +10,8 @@ type Resource struct {
 	Data    string `gorm:"longtext;not null" json:"data"`
 	PVCName string `gorm:"varchar(255)" json:"pvc_name"`
 	PVName  string `gorm:"varchar(255)" json:"pv_name"`
+	Tags    string `gorm:"varchar(255)" json:"tags"`
+	Hosts   string `gorm:"varchar(255)" json:"hosts"`
 }
 
 func (r *Resource) Create() {}
