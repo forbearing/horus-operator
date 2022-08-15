@@ -5,3 +5,4 @@
 *.nopush
 *.nosync
 *rsync.sh
+.idea
