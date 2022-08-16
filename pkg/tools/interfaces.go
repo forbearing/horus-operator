@@ -15,3 +15,7 @@ type MigrationInterface interface {
 type CloneInterface interface {
 	DoClone(dst, src string) error
 }
+
+type TrafficInterface interface {
+	DoTraffic()
+}
