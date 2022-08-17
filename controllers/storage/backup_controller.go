@@ -18,20 +18,22 @@ package storage
 
 import (
 	"context"
+	"strings"
 	"time"
 
+	storagev1alpha1 "github.com/forbearing/horus-operator/apis/storage/v1alpha1"
+	"github.com/forbearing/horus-operator/pkg/tools"
+	_ "github.com/forbearing/horus-operator/pkg/tools"
+	"github.com/forbearing/k8s/pod"
+	"github.com/go-logr/logr"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
-
-	storagev1alpha1 "github.com/forbearing/horus-operator/apis/storage/v1alpha1"
-	"github.com/go-logr/logr"
 )
 
 // BackupReconciler reconciles a Backup object
@@ -61,33 +63,49 @@ func (r *BackupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	//logger.Info("Backup Reconcile")
 
 	// 1.get a "Backup" resource
-	backup := &storagev1alpha1.Backup{}
-	err := r.Get(ctx, req.NamespacedName, backup)
+	backupObj := &storagev1alpha1.Backup{}
+	err := r.Get(ctx, req.NamespacedName, backupObj)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return ctrl.Result{}, nil
 		}
-		logger.Info(backup.Name)
+		logger.Info(backupObj.Name)
 		return ctrl.Result{}, err
 	}
 
-	// 2.get cronjob resource.
-	cronjob := &batchv1.CronJob{}
-	err = r.Get(ctx, types.NamespacedName{Name: req.NamespacedName.Name, Namespace: req.NamespacedName.Namespace}, cronjob)
+	// =====
+	podHandler, err := pod.New(ctx, "", "default")
 	if err != nil {
-		if apierrors.IsNotFound(err) {
-			if err = r.Create(ctx, r.cronjobForBackup(backup)); err != nil {
-				// create cronjob failed, return with error.
-				return ctrl.Result{}, err
-			}
-			// create cronjob success and return nil, reconcile again to
-			// make sure the "backup" resource status met desired status.
-			return ctrl.Result{Requeue: true}, nil
-		} else {
-			// get cronjob failed and not "NotFound" error, return with error.
-			return ctrl.Result{}, err
-		}
+		return ctrl.Result{}, err
 	}
+	podObj, err := podHandler.Get("web2-0")
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	buffer, err := tools.BackupToNFS(ctx, "default", podObj, backupObj.Spec.BackupTo.NFS)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	logger.Info(strings.TrimSpace(buffer.String()))
+	// =====
+
+	//// 2.get cronjob resource.
+	//cronjob := &batchv1.CronJob{}
+	//err = r.Get(ctx, types.NamespacedName{Name: req.NamespacedName.Name, Namespace: req.NamespacedName.Namespace}, cronjob)
+	//if err != nil {
+	//    if apierrors.IsNotFound(err) {
+	//        if err = r.Create(ctx, r.cronjobForBackup(backupObj)); err != nil {
+	//            // create cronjob failed, return with error.
+	//            return ctrl.Result{}, err
+	//        }
+	//        // create cronjob success and return nil, reconcile again to
+	//        // make sure the "backup" resource status met desired status.
+	//        return ctrl.Result{Requeue: true}, nil
+	//    } else {
+	//        // get cronjob failed and not "NotFound" error, return with error.
+	//        return ctrl.Result{}, err
+	//    }
+	//}
 
 	return ctrl.Result{}, nil
 }
