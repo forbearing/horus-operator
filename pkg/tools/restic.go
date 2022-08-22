@@ -6,8 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
+	"os"
 	"os/exec"
+	"strings"
 
 	storagev1alpha "github.com/forbearing/horus-operator/apis/storage/v1alpha1"
 	"github.com/forbearing/k8s/deployment"
@@ -16,6 +17,12 @@ import (
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+)
+
+const (
+	resticBackupSource = "/backup-source"
+	resticRepo         = "/resitc-repo"
+	resticPasswdFile   = "/tmp/.restic-passwd"
 )
 
 var (
@@ -83,7 +90,7 @@ func (t *Restic) BackupToNFS(ctx context.Context, operatorNamespace string, podO
 	//nodeName, _ := handler.GetNodeName(podObj)
 	podUID, _ := handler.GetUID(podObj)
 	buffer := &bytes.Buffer{}
-	handler.ExecuteWriter("findpvpath", "", []string{"findpvpath", "-uid", podUID, "-storage", "nfs"}, buffer, buffer)
+	handler.ExecuteWithStream("findpvpath", "", []string{"findpvpath", "-uid", podUID, "-storage", "nfs"}, os.Stdin, buffer, buffer)
 	return buffer, nil
 
 	//podYaml := generatePodTemplateNFS(podObj.Name, podObj.Namespace, nodeName, strings.Split(buffer.String(), "\n"), nfs.Server, nfs.Path)
@@ -116,26 +123,6 @@ func (t *Restic) DoClone(ctx context.Context, dst, src string) error {
 	return nil
 }
 
-//func findPVPath(podUID, storageType string) ([]string, error) {
-//    prefix := "/var/lib/kubelet/pods"
-//    dirname := filepath.Join(prefix, podUID, "volumes")
-//    files, err := ioutil.ReadDir(dirname)
-//    if err != nil {
-//        return nil, err
-//    }
-
-//    var dataPath []string
-//    for _, f := range files {
-//        if f.IsDir() && strings.Contains(filepath.Join(dirname, f.Name()), strings.ToLower(storageType)) {
-//            dataPath = append(dataPath, filepath.Join(dirname, f.Name()))
-//        }
-//    }
-//    return dataPath, nil
-//}
-
-func generatePodTemplateNFS(name, namespace, nodeName string, dataPath []string, nfsServer, nfsPath string) string {
-	return ""
-}
 func BackupToNFS(ctx context.Context, operatorNamespace string, podObj *corev1.Pod, nfs *storagev1alpha.NFS) (*bytes.Buffer, error) {
 	// === 准备处理器
 	deployHandler, err := deployment.New(ctx, "", operatorNamespace)
@@ -148,48 +135,69 @@ func BackupToNFS(ctx context.Context, operatorNamespace string, podObj *corev1.P
 	}
 	_ = deployHandler
 	_ = podHandler
-	res := restic.NewIgnoreNotFound(ctx, &restic.GlobalFlags{NoCache: true, Repo: nfs.Path})
-	res.Command(restic.Init{})
-	logrus.Info(res.String())
 
 	// === 1.获取 NFS 的信息
 	//nfs.Server
 	//nfs.Path
 
-	// === 2.创建一个 deployment,
+	// === 2.创建一个用来查找 pv 路径的 deployment,
 	// deployment 需要挂载 /var/lib/kubelet 目录
-	// deployment 部署在 operator 同一个 namespace
+	// deployment 需要和 operator 部署在同一个 namespace
 	// deployment 配置 nodeName 和需要备份的 pod 在同一个 node 上.
-	deployName := "findpvpath"
+	findpvpathDeployName := "findpvpath"
 	nodeName, _ := podHandler.GetNodeName(podObj)
-	_, err = deployHandler.Apply([]byte(fmt.Sprintf(findpvpathDeployTemplate, deployName, operatorNamespace, nodeName)))
+	findpvpathImage := "hybfkuf/findpvpath:latest"
+	_, err = deployHandler.Apply([]byte(fmt.Sprintf(findpvpathDeploymentTemplate,
+		findpvpathDeployName, operatorNamespace, nodeName, findpvpathImage)))
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
-	deployHandler.WaitReady(deployName)
+	deployHandler.WaitReady(findpvpathDeployName)
 
-	// === 3.获取这个 deployment 的 pod
+	// === 3.获取查找 pv 路径的 pod
 	// 在这个 pod 中执行命令, 来获取需要备份的 pod 的 pv 路径.
-	findpvpathPods, err := deployHandler.GetPods(deployName)
+	findpvpathPods, err := deployHandler.GetPods(findpvpathDeployName)
 	if err != nil {
 		return nil, err
 	}
 	podUID, _ := podHandler.GetUID(podObj)
 	buffer := &bytes.Buffer{}
-	err = podHandler.ExecuteWriter(findpvpathPods[0].Name, "", []string{"findpvpath", "-uid", podUID, "-storage", "nfs"}, buffer, buffer)
+	err = podHandler.ExecuteWithStream(findpvpathPods[0].Name, "", []string{"findpvpath", "-uid", podUID, "-storage", "nfs"}, os.Stdin, buffer, buffer)
 	if err != nil {
 		return nil, err
 	}
+
+	// === 4.创建一个用来备份数据的 deployment,
+	// deployment 挂载需要备份的 pod 的 pv,
+	// deployment 挂载 NFS 存储
+	// 对 deployment 的 pod 执行命令:
+	//   restic init 初始化 restic repository
+	//   restic backup 将 pv 数据备份到 NFS 存储
+	backuptonfsDeployName := "backup-to-nfs"
+	backupSource := strings.TrimSpace(buffer.String())
+	backuptonfsImage := "hybfkuf/backup-tools-restic:latest"
+	_, err = deployHandler.Apply([]byte(fmt.Sprintf(backuptonfsDeploymentTemplate,
+		backuptonfsDeployName, operatorNamespace, nodeName, backuptonfsImage, backupSource, nfs.Server, nfs.Path)))
+	if err != nil {
+		return nil, err
+	}
+	deployHandler.WaitReady(backuptonfsDeployName)
+	backuptonfsPods, err := deployHandler.GetPods(backuptonfsDeployName)
+	if err != nil {
+		return nil, err
+	}
+
+	// === 5.在 pod/backup-to-nfs 中执行 "restic init"
+	res := restic.NewIgnoreNotFound(ctx, &restic.GlobalFlags{NoCache: true, Repo: resticRepo, Quiet: true, PasswordFile: resticPasswdFile})
+	//res.SetEnv("REPOSITORY_PASSWORD", "mypass")
+	logrus.Info(res.Command(restic.Init{}))
+	resticPass := &bytes.Buffer{}
+	resticPass.WriteString("mypass")
+	podHandler.ExecuteWithStream(backuptonfsPods[0].Name, "", strings.Split(res.String(), " "), resticPass, os.Stdout, os.Stderr)
+
+	// === 6.在 pod/backup-to-nfs 中执行 "restic backup"
+	logrus.Info(res.Command(restic.Backup{}.SetArgs(resticBackupSource)))
+	podHandler.Execute(backuptonfsPods[0].Name, "", strings.Split(res.String(), " "))
+
 	return buffer, nil
-
-	// === 4.再创建一个 deployment, deployment 挂载需要备份的 pod 的 pv, 再挂载 NFS.
-	//   最后把 pv 数据备份进入到 NFS 中.
-
-	//podYaml := generatePodTemplateNFS(podObj.Name, podObj.Namespace, nodeName, strings.Split(buffer.String(), "\n"), nfs.Server, nfs.Path)
-
-	//forbackup, err := handler.Create(podYaml)
-	//if err != nil {
-	//    return err
-	//}
-	//return handler.WithNamespace(operatorNamespace).Execute(forbackup.Name, "", strings.Split(res.String(), " "), nil)
 }
