@@ -9,5 +9,5 @@ spec:
     name: k8s-tools
   backupTo:
     nfs:
-      server: 1.1.1.1
-      path: /srv/nfs/kubedata
+      server: 10.250.16.21
+      path: /srv/nfs/restic
