@@ -3,11 +3,12 @@ module github.com/forbearing/horus-operator
 go 1.18
 
 require (
-	github.com/forbearing/k8s v0.8.1
-	github.com/forbearing/restic v1.3.0
+	github.com/forbearing/k8s v0.9.1
+	github.com/forbearing/restic v1.4.1
 	github.com/go-logr/logr v1.2.3
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.19.0
+	github.com/sirupsen/logrus v1.8.1
 	gorm.io/gorm v1.23.8
 	k8s.io/api v0.24.2
 	k8s.io/apimachinery v0.24.2
@@ -58,7 +59,6 @@ require (
 	github.com/prometheus/client_model v0.2.0 // indirect
 	github.com/prometheus/common v0.32.1 // indirect
 	github.com/prometheus/procfs v0.7.3 // indirect
-	github.com/sirupsen/logrus v1.8.1 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	go.uber.org/atomic v1.7.0 // indirect
 	go.uber.org/multierr v1.6.0 // indirect
