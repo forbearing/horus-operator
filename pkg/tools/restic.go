@@ -157,7 +157,7 @@ func BackupToNFS(ctx context.Context, operatorNamespace string, podName string, 
 	podHandler.ExecuteWithStream(backuptonfsPod.Name, "", strings.Split(res.String(), " "), createPassStdin(resticPasswd, 2), io.Discard, io.Discard)
 	// === 6.在 pod/backup-to-nfs 中执行 "restic backup"
 	logrus.Info(res.Command(restic.Backup{}.SetArgs(resticBackupSource)))
-	podHandler.ExecuteWithStream(backuptonfsPods[0].Name, "", strings.Split(res.String(), " "), createPassStdin(resticPasswd), io.Discard, io.Discard)
+	podHandler.ExecuteWithStream(backuptonfsPod.Name, "", strings.Split(res.String(), " "), createPassStdin(resticPasswd), io.Discard, io.Discard)
 	logrus.Info("Successfully Backup to NFS Server")
 	return nil
 }
