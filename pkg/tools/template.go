@@ -18,6 +18,8 @@ spec:
       app.kubernetes.io/part-of: horus-operator
   template:
     metadata:
+      annotations:
+        %s: %s
       labels:
         app.kubernetes.io/name: findpvpath
         app.kubernetes.io/part-of: horus-operator
@@ -54,6 +56,8 @@ spec:
       app.kubernetes.io/part-of: horus-operator
   template:
     metadata:
+      annotations:
+        %s: %s
       labels:
         app.kubernetes.io/name: backup-to-nfs
         app.kubernetes.io/part-of: horus-operator
@@ -64,13 +68,13 @@ spec:
         image: "%s"
         volumeMounts:
         - name: backup-source
-          mountPath: /backup-source
+          mountPath: "%s"
           readOnly: true
         - name: restic-repo
           mountPath: restic-repo
           readOnly: false
       volumes:
-      - name: backup-source
+      - name: "backup-source"
         hostPath:
           path: "%s"
           type: Directory
