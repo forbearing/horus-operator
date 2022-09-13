@@ -22,7 +22,6 @@ import (
 
 	storagev1alpha1 "github.com/forbearing/horus-operator/apis/storage/v1alpha1"
 	"github.com/forbearing/horus-operator/pkg/tools"
-	_ "github.com/forbearing/horus-operator/pkg/tools"
 	"github.com/go-logr/logr"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -71,8 +70,8 @@ func (r *BackupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{}, err
 	}
 
-	podName := "nginx-sts-2"
-	if err := tools.BackupToNFS(ctx, "default", podName, backupObj.Spec.BackupTo.NFS); err != nil {
+	operatorNamespace := "default"
+	if err := tools.BackupToNFS(ctx, operatorNamespace, backupObj.Spec.BackupFrom, backupObj.Spec.BackupTo.NFS); err != nil {
 		return ctrl.Result{}, err
 	}
 	// =====
