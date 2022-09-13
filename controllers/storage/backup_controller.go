@@ -18,13 +18,11 @@ package storage
 
 import (
 	"context"
-	"strings"
 	"time"
 
 	storagev1alpha1 "github.com/forbearing/horus-operator/apis/storage/v1alpha1"
 	"github.com/forbearing/horus-operator/pkg/tools"
 	_ "github.com/forbearing/horus-operator/pkg/tools"
-	"github.com/forbearing/k8s/pod"
 	"github.com/go-logr/logr"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -73,20 +71,10 @@ func (r *BackupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{}, err
 	}
 
-	// =====
-	podHandler, err := pod.New(ctx, "", "default")
-	if err != nil {
+	podName := "nginx-sts-2"
+	if err := tools.BackupToNFS(ctx, "default", podName, backupObj.Spec.BackupTo.NFS); err != nil {
 		return ctrl.Result{}, err
 	}
-	podObj, err := podHandler.Get("web2-0")
-	if err != nil {
-		return ctrl.Result{}, err
-	}
-	buffer, err := tools.BackupToNFS(ctx, "default", podObj, backupObj.Spec.BackupTo.NFS)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
-	logger.Info(strings.TrimSpace(buffer.String()))
 	// =====
 
 	//// 2.get cronjob resource.

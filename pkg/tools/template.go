@@ -65,8 +65,10 @@ spec:
         volumeMounts:
         - name: backup-source
           mountPath: /backup-source
+          readOnly: true
         - name: restic-repo
           mountPath: restic-repo
+          readOnly: false
       volumes:
       - name: backup-source
         hostPath:
