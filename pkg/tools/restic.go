@@ -54,6 +54,7 @@ func BackupToNFS(ctx context.Context, operatorNamespace string, backupFrom *stor
 		rsHandler     *replicaset.Handler
 		stsHandler    *statefulset.Handler
 		dsHandler     *daemonset.Handler
+		pvHandler     *persistentvolume.Handler
 
 		resourceKind storagev1alpha1.Resource
 		nodeName     string
@@ -94,6 +95,9 @@ func BackupToNFS(ctx context.Context, operatorNamespace string, backupFrom *stor
 	if dsHandler, err = daemonset.New(ctx, "", operatorNamespace); err != nil {
 		return err
 	}
+	if pvHandler, err = persistentvolume.New(ctx, ""); err != nil {
+		return err
+	}
 
 	resourceKind = backupFrom.Resource
 	switch resourceKind {
@@ -123,20 +127,60 @@ func BackupToNFS(ctx context.Context, operatorNamespace string, backupFrom *stor
 		return errors.New("Not Support backup object")
 	}
 
+	// backupPodInfo 包含了备份对象的 pod 备份信息
+	// pvcpvMap 存在的意义: 不要重复备份同一个 pvc
+	// 因为有些 pvc  为 ReadWriteMany 模式, 当一个 deployment 下的多个 pod 同时
+	// 挂载了同一个 pvc, 默认会对这个 pvc 备份多次, 这完全没必要, 只需要备份一次即可
+	// pvcpvMap 的 key 是 pvc 名字,  value 是 pv 的名字
+	type backupPodInfo struct {
+		podObj   *corev1.Pod
+		nodeName string
+		podUID   string
+		pvcpvMap map[string]string
+	}
+
 	// podObj 为备份对象(比如 Deployment, StatefulSet, DaemonSet, Pod) 的一个或多个 Pod
+	var bpiList []backupPodInfo
 	for _, podObj := range podObjList {
-		logrus.Infof(`Start to backup "pod/%s"`, podObj.Name)
-		// findpvpath 和 backuptonfs 这两个 deployment 都需要 nodeName
+
+		bpi := backupPodInfo{}
+		bpi.pvcpvMap = make(map[string]string)
+
 		if nodeName, err = podHandler.GetNodeName(podObj); err != nil {
 			return err
 		}
-		// findpvpath 需要 podUID
 		if podUID, err = podHandler.GetUID(podObj); err != nil {
 			return err
 		}
 		if pvList, err = podHandler.GetPV(podObj); err != nil {
 			return err
 		}
+
+		var pvc string
+		//pvcpvMap := make(map[string]string)
+		for _, pv := range pvList {
+			if pvc, err = pvHandler.GetPVC(pv); err != nil {
+				return err
+			}
+			if len(pvc) == 0 {
+				continue
+			}
+			bpi.pvcpvMap[pvc] = pv
+		}
+		bpi.podObj = podObj
+		bpi.nodeName = nodeName
+		bpi.podUID = podUID
+		bpiList = append(bpiList, bpi)
+	}
+
+	for _, bpi := range bpiList {
+		var (
+			podObj   = bpi.podObj
+			nodeName = bpi.nodeName
+			podUID   = bpi.podUID
+			pvcpvMap = bpi.pvcpvMap
+		)
+		logrus.Infof(`Start to backup "pod/%s"`, podObj.Name)
 		logrus.Debugf(`The pod located in node: "%s"`, nodeName)
 		logrus.Debugf(`The pod UID is: "%s"`, podUID)
 
@@ -202,7 +246,7 @@ func BackupToNFS(ctx context.Context, operatorNamespace string, backupFrom *stor
 
 		//
 		//
-		// === 4.创建 deployment/backup-to-nfs, 通过 restic 备份工具来备份实际的  pv 数据,
+		// === 3.创建 deployment/backup-to-nfs, 通过 restic 备份工具来备份实际的  pv 数据,
 		// deployment 挂载需要备份的 pod 的 pv,
 		// deployment 挂载 NFS 存储
 		// 对 deployment 的 pod 执行命令:
@@ -255,8 +299,9 @@ func BackupToNFS(ctx context.Context, operatorNamespace string, backupFrom *stor
 
 		}
 
-		// === 5.在 pod/backup-to-nfs 中执行 "restic init"
-		if err = backupByRestic(ctx, backupFrom, operatorNamespace, podHandler, backuptonfsPod.Name, podObj, pvpath, pvList, HostBackupToNFS); err != nil {
+		// === 4.通过 restic 备份工具开始备份
+
+		if err = backupByRestic(ctx, backupFrom, operatorNamespace, podHandler, backuptonfsPod.Name, podObj, pvpath, pvcpvMap, HostBackupToNFS); err != nil {
 			return err
 		}
 
@@ -269,27 +314,20 @@ func BackupToNFS(ctx context.Context, operatorNamespace string, backupFrom *stor
 // resticHost 作为 restic backup --host 的参数值
 // pvpath + pv 就是实际的 pv 数据的存放路径
 func backupByRestic(ctx context.Context, backupFrom *storagev1alpha1.BackupFrom, operatorNamespace string, podHandler *pod.Handler,
-	execPod string, podObj *corev1.Pod, pvpath string, pvList []string, resticHost string) error {
+	execPod string, podObj *corev1.Pod, pvpath string, pvcpvMap map[string]string, resticHost string) error {
 
 	res := restic.NewIgnoreNotFound(ctx, &restic.GlobalFlags{NoCache: true, Repo: resticRepo, Verbose: 3})
-	pvHandler, err := persistentvolume.New(ctx, "")
-	if err != nil {
-		return err
-	}
-
 	logrus.Debug(res.Command(restic.Init{}))
 	//// 需要输入两遍密码, 一定需要输入两个 "\n", 否则 "restic init" 会一直卡在这里
 	podHandler.ExecuteWithStream(execPod, "", strings.Split(res.String(), " "), createPassStdin(resticPasswd, 2), io.Discard, io.Discard)
 
 	var tags []string
-	var pvc string
-	for _, pv := range pvList {
-		if pvc, err = pvHandler.GetPVC(pv); err != nil {
-			return err
-		}
-		tags = []string{string(backupFrom.Resource), defaultClusterName, backupFrom.Name, pvc}
+	for pvc, pv := range pvcpvMap {
+		tags = []string{string(backupFrom.Resource), defaultClusterName, podObj.Namespace, backupFrom.Name, pvc}
 		logrus.Debug(res.Command(restic.Backup{Tag: tags, Host: resticHost}.SetArgs(filepath.Join(pvpath, pv))))
-		podHandler.ExecuteWithStream(execPod, "", strings.Split(res.String(), " "), createPassStdin(resticPasswd), io.Discard, io.Discard)
+		if err := podHandler.ExecuteWithStream(execPod, "", strings.Split(res.String(), " "), createPassStdin(resticPasswd), io.Discard, io.Discard); err != nil {
+			logrus.Errorf(`backup %s failed, mybe the directories/files do not exist in k8s node`, filepath.Join(pvpath, pv))
+		}
 	}
 
 	return nil
