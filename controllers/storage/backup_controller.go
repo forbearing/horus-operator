@@ -71,7 +71,7 @@ func (r *BackupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	}
 
 	operatorNamespace := "default"
-	if err := tools.BackupToNFS(ctx, operatorNamespace, backupObj.Spec.BackupFrom, backupObj.Spec.BackupTo.NFS); err != nil {
+	if err := tools.BackupToNFS(ctx, operatorNamespace, backupObj.Namespace, backupObj.Spec.BackupFrom, backupObj.Spec.BackupTo.NFS); err != nil {
 		return ctrl.Result{}, err
 	}
 	// =====
