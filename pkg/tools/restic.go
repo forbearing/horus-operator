@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	storagev1alpha "github.com/forbearing/horus-operator/apis/storage/v1alpha1"
+	storagev1alpha1 "github.com/forbearing/horus-operator/apis/storage/v1alpha1"
 	"github.com/forbearing/k8s/daemonset"
 	"github.com/forbearing/k8s/deployment"
 	"github.com/forbearing/k8s/persistentvolume"
@@ -44,7 +44,7 @@ var (
 
 // podObj: 是要备份的 pv 所挂载到到 pod
 // nfs: 将数据备份到 NFS
-func BackupToNFS(ctx context.Context, operatorNamespace string, backupFrom *storagev1alpha.BackupFrom, nfs *storagev1alpha.NFS) error {
+func BackupToNFS(ctx context.Context, operatorNamespace string, backupFrom *storagev1alpha1.BackupFrom, nfs *storagev1alpha1.NFS) error {
 	logrus.SetLevel(logrus.DebugLevel)
 
 	var (
@@ -55,10 +55,11 @@ func BackupToNFS(ctx context.Context, operatorNamespace string, backupFrom *stor
 		stsHandler    *statefulset.Handler
 		dsHandler     *daemonset.Handler
 
-		nodeName   string
-		podUID     string
-		podObjList []*corev1.Pod
-		pvList     []string
+		resourceKind storagev1alpha1.Resource
+		nodeName     string
+		podUID       string
+		podObjList   []*corev1.Pod
+		pvList       []string
 
 		findpvpathName   = "findpvpath"
 		findpvpathImage  = "hybfkuf/findpvpath:latest"
@@ -94,25 +95,26 @@ func BackupToNFS(ctx context.Context, operatorNamespace string, backupFrom *stor
 		return err
 	}
 
-	switch backupFrom.Resource {
-	case storagev1alpha.PodResource:
+	resourceKind = backupFrom.Resource
+	switch resourceKind {
+	case storagev1alpha1.PodResource:
 		logrus.Infof(`Start to backup "pod/%s"`, backupFrom.Name)
 		podObj, err := podHandler.Get(backupFrom.Name)
 		if err != nil {
 			return err
 		}
 		podObjList = append(podObjList, podObj)
-	case storagev1alpha.DeploymentResource:
+	case storagev1alpha1.DeploymentResource:
 		logrus.Infof(`Start to backup "deployment/%s"`, backupFrom.Name)
 		if podObjList, err = deployHandler.GetPods(backupFrom.Name); err != nil {
 			return err
 		}
-	case storagev1alpha.StatefulSetResource:
+	case storagev1alpha1.StatefulSetResource:
 		logrus.Infof(`Start to backup "statefulset/%s"`, backupFrom.Name)
 		if podObjList, err = stsHandler.GetPods(backupFrom.Name); err != nil {
 			return err
 		}
-	case storagev1alpha.DaemonSetResource:
+	case storagev1alpha1.DaemonSetResource:
 		logrus.Infof(`Start to backup "daemonset/%s"`, backupFrom.Name)
 		if podObjList, err = dsHandler.GetPods(backupFrom.Name); err != nil {
 			return err
@@ -254,7 +256,7 @@ func BackupToNFS(ctx context.Context, operatorNamespace string, backupFrom *stor
 		}
 
 		// === 5.在 pod/backup-to-nfs 中执行 "restic init"
-		if err = backupByRestic(ctx, operatorNamespace, podHandler, backuptonfsPod.Name, podObj, pvpath, pvList, HostBackupToNFS); err != nil {
+		if err = backupByRestic(ctx, backupFrom, operatorNamespace, podHandler, backuptonfsPod.Name, podObj, pvpath, pvList, HostBackupToNFS); err != nil {
 			return err
 		}
 
@@ -266,7 +268,7 @@ func BackupToNFS(ctx context.Context, operatorNamespace string, backupFrom *stor
 
 // resticHost 作为 restic backup --host 的参数值
 // pvpath + pv 就是实际的 pv 数据的存放路径
-func backupByRestic(ctx context.Context, operatorNamespace string, podHandler *pod.Handler,
+func backupByRestic(ctx context.Context, backupFrom *storagev1alpha1.BackupFrom, operatorNamespace string, podHandler *pod.Handler,
 	execPod string, podObj *corev1.Pod, pvpath string, pvList []string, resticHost string) error {
 
 	res := restic.NewIgnoreNotFound(ctx, &restic.GlobalFlags{NoCache: true, Repo: resticRepo, Verbose: 3})
@@ -285,7 +287,7 @@ func backupByRestic(ctx context.Context, operatorNamespace string, podHandler *p
 		if pvc, err = pvHandler.GetPVC(pv); err != nil {
 			return err
 		}
-		tags = []string{pod.GVK().Kind, defaultClusterName, podObj.Namespace, podObj.Name, pvc}
+		tags = []string{string(backupFrom.Resource), defaultClusterName, backupFrom.Name, pvc}
 		logrus.Debug(res.Command(restic.Backup{Tag: tags, Host: resticHost}.SetArgs(filepath.Join(pvpath, pv))))
 		podHandler.ExecuteWithStream(execPod, "", strings.Split(res.String(), " "), createPassStdin(resticPasswd), io.Discard, io.Discard)
 	}
