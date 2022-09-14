@@ -25,9 +25,9 @@ import (
 )
 
 type pvdataMeta struct {
-	nodeName string
-	podUID   string
 	podName  string
+	podUID   string
+	nodeName string
 	pvdir    string
 	pvname   string
 }
@@ -131,7 +131,20 @@ func BackupToNFS(ctx context.Context, operatorNamespace, backupObjNamespace stri
 	// pvcpvMap 存在的意义: 不要重复备份同一个 pvc
 	// 因为有些 pvc  为 ReadWriteMany 模式, 当一个 deployment 下的多个 pod 同时
 	// 挂载了同一个 pvc, 默认会对这个 pvc 备份多次, 这完全没必要, 只需要备份一次即可
+	// pvc name 作为 key, pvdataMeta 作为 value
+	// 在这里只设置了 pv name
 	pvcpvMap := make(map[string]pvdataMeta)
+	for _, pvc := range pvcList {
+		pvname, err := pvcHandler.GetPV(pvc)
+		if err != nil {
+			return fmt.Errorf("persistentvolumeclaim handler get persistentvolume error: %s", err.Error())
+		}
+		pvcpvMap[pvc] = pvdataMeta{pvname: pvname}
+	}
+
+	for pvc, meta := range pvcpvMap {
+		logrus.Debugf("%v: %v", pvc, meta)
+	}
 
 	// podObj 为备份对象(比如 Deployment, StatefulSet, DaemonSet, Pod) 的一个或多个 Pod
 	for _, podObj := range podObjList {
@@ -143,7 +156,6 @@ func BackupToNFS(ctx context.Context, operatorNamespace, backupObjNamespace stri
 			return err
 		}
 
-		//
 		// === 1.获取 NFS 的信息
 		//nfs.Server
 		//nfs.Path
@@ -164,26 +176,34 @@ func BackupToNFS(ctx context.Context, operatorNamespace, backupObjNamespace stri
 		}
 		//
 		// === 3.
+		pvcList, err := podHandler.GetPVC(podObj)
+		if err != nil {
+			return fmt.Errorf("pod handler get persistentvolumeclaim faile: %s", err.Error())
+		}
+		logrus.Debugf(`The persistentvolumeclaim mounted by "pod/%s" are: %v`, podObj.Name, pvcList)
+
 		for _, pvc := range pvcList {
-			var pv string
-			if pv, err = pvcHandler.GetPV(pvc); err != nil {
-				return err
-			}
-			if len(pv) == 0 {
+			if _, ok := pvcpvMap[pvc]; !ok {
+				logrus.Warnf(`"persistentvolumeclaim/%s" not found`, pvc)
 				continue
 			}
-			pvcpvMap[pvc] = pvdataMeta{pvdir: pvdir, pvname: pv, nodeName: nodeName, podUID: podUID, podName: podObj.Name}
+			pvname := pvcpvMap[pvc].pvname
+			pvcpvMap[pvc] = pvdataMeta{
+				podName:  podObj.Name,
+				podUID:   podUID,
+				nodeName: nodeName,
+				pvdir:    pvdir,
+				pvname:   pvname,
+			}
 		}
 	}
+	for pvc, meta := range pvcpvMap {
+		logrus.Debugf("%v: %v", pvc, meta)
+	}
+
+	//select {}
 
 	for pvc, meta := range pvcpvMap {
-		logrus.Infof(`Start to backup "pod/%s"`, meta.podName)
-		logrus.Debugf(`The pod located in node: "%s"`, meta.nodeName)
-		logrus.Debugf(`The pod UID is: "%s"`, meta.podUID)
-		logrus.Debugf("persistentvolumeclaim name: %s", pvc)
-		logrus.Debugf("persistentvolume name: %s:", meta.pvname)
-		logrus.Debugf("persistentvolume in k8s node dir path: %s", meta.pvdir)
-
 		// === 3.创建 deployment/backup-to-nfs, 通过 restic 备份工具来备份实际的  pv 数据,
 		// deployment 挂载需要备份的 pod 的 pv,
 		// deployment 挂载 NFS 存储
