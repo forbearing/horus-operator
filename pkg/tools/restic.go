@@ -65,9 +65,8 @@ func BackupToNFS(ctx context.Context, operatorNamespace, backupObjNamespace stri
 		dsHandler     *daemonset.Handler
 		pvcHandler    *persistentvolumeclaim.Handler
 
-		resourceKind storagev1alpha1.Resource
-		podObjList   []*corev1.Pod
-		pvcList      []string
+		podObjList []*corev1.Pod
+		pvcList    []string
 	)
 
 	// === 准备处理器
@@ -90,8 +89,7 @@ func BackupToNFS(ctx context.Context, operatorNamespace, backupObjNamespace stri
 		return fmt.Errorf("create persistentvolumeclaim handler error: %s", err.Error())
 	}
 
-	resourceKind = backupFrom.Resource
-	switch resourceKind {
+	switch backupFrom.Resource {
 	case storagev1alpha1.PodResource:
 		logrus.Infof(`Start to backup "pod/%s"`, backupFrom.Name)
 		podObj, err := podHandler.Get(backupFrom.Name)

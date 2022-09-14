@@ -1,32 +1,32 @@
 package tools
 
 var (
-	findpvpathDeploymentTemplate = `
+	findpvdirDeploymentTemplate = `
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: %s
   namespace: %s
   labels:
-    app.kubernetes.io/name: findpvpath
+    app.kubernetes.io/name: findpvdir
     app.kubernetes.io/part-of: horus-operator
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app.kubernetes.io/name: findpvpath
+      app.kubernetes.io/name: findpvdir
       app.kubernetes.io/part-of: horus-operator
   template:
     metadata:
       annotations:
         %s: %s
       labels:
-        app.kubernetes.io/name: findpvpath
+        app.kubernetes.io/name: findpvdir
         app.kubernetes.io/part-of: horus-operator
     spec:
       nodeName: %s
       containers:
-      - name: findpvpath
+      - name: findpvdir
         image: %s
         volumeMounts:
         - name: kubelet-home-dir
