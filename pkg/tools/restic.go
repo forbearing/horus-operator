@@ -309,7 +309,7 @@ func createFindpvdirDeployment(
 	if findpvdirObj, err = deployHandler.WithNamespace(operatorNamespace).Apply(findpvdirBytes); err != nil {
 		return "", fmt.Errorf(`deployment handler apply "deployment/%s" failed: %s`, findpvdirName, err.Error())
 	}
-	logger.Debugf(`Waiting "deployment/%s" available and ready.`, findpvdirName)
+	logger.Debugf(`Waiting "deployment/%s" to be available and ready.`, findpvdirName)
 	deployHandler.WithNamespace(operatorNamespace).WaitReady(findpvdirName)
 
 	// 使用 findpvdirObj 作为参数传入而不是使用 findpvdirName 作为参数传入,
@@ -394,7 +394,7 @@ func createBackuptonfsDeployment(
 	if backuptonfsObj, err = deployHandler.WithNamespace(operatorNamespace).Apply(backuptonfsBytes); err != nil {
 		return "", err
 	}
-	logger.Debugf(`Waiting "deployment/%s" available and ready.`, backuptonfsName)
+	logger.Debugf(`Waiting "deployment/%s" to be available and ready.`, backuptonfsName)
 	deployHandler.WithNamespace(operatorNamespace).WaitReady(backuptonfsName)
 
 	// 先找到 backuptonfs 这个 Deployment 下所有管理的 ReplicaSet
