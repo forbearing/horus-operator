@@ -34,6 +34,8 @@ import (
 	networkingv1alpha1 "github.com/forbearing/horus-operator/apis/networking/v1alpha1"
 	storagev1alpha1 "github.com/forbearing/horus-operator/apis/storage/v1alpha1"
 	storagecontrollers "github.com/forbearing/horus-operator/controllers/storage"
+	"github.com/forbearing/horus-operator/pkg/args"
+	"github.com/forbearing/horus-operator/pkg/logger"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -42,15 +44,28 @@ var (
 	setupLog = ctrl.Log.WithName("setup")
 )
 
+var (
+	argLogLevel  = flag.String("log-level", "INFO", "level of API request logging, should be one of   'ERROR', 'WARNING|WARN', 'INFO', 'DEBUG' or 'TRACE'")
+	argLogFormat = flag.String("log-format", "TEXT", "specify log format, should be on of 'TEXT' or 'JSON'")
+	argLogFile   = flag.String("log-output", "/dev/stdout", "specify log file, default output log to /dev/stdout")
+)
+
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-
 	utilruntime.Must(storagev1alpha1.AddToScheme(scheme))
 	utilruntime.Must(networkingv1alpha1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
+
+	flag.Parse()
+	builder := args.NewBuilder()
+	builder.SetLogLevel(*argLogLevel)
+	builder.SetLogFormat(*argLogFormat)
+	builder.SetLogFile(*argLogFile)
 }
 
 func main() {
+	logger.Init()
+
 	var metricsAddr string
 	var enableLeaderElection bool
 	var probeAddr string
