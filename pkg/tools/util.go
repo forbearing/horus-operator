@@ -12,7 +12,6 @@ import (
 // 之所以额外使用这个函数,是因为输入密码之后要会车,并且有些时候需要输入两边密码
 func createPassStdin(pass string, repeatCount ...uint) *bytes.Buffer {
 	buf := new(bytes.Buffer)
-
 	if len(repeatCount) == 0 {
 		buf.WriteString(pass + "\n")
 		return buf

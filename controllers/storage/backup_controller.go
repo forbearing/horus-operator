@@ -33,6 +33,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
+const (
+	defaultOperatorNamespace = "horus-operator"
+)
+
 // BackupReconciler reconciles a Backup object
 type BackupReconciler struct {
 	client.Client
@@ -70,8 +74,9 @@ func (r *BackupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{}, err
 	}
 
-	operatorNamespace := "default"
-	if err := tools.BackupToNFS(ctx, operatorNamespace, backupObj.Namespace, backupObj.Spec.BackupFrom, backupObj.Spec.BackupTo.NFS); err != nil {
+	if err := tools.BackupToNFS(ctx,
+		defaultOperatorNamespace, backupObj.Namespace,
+		backupObj.Spec.BackupFrom, backupObj.Spec.BackupTo.NFS); err != nil {
 		return ctrl.Result{}, err
 	}
 	// =====
