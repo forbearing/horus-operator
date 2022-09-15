@@ -48,13 +48,15 @@ var (
 	createdTimeAnnotation   = "storage.hybfkuf.io/createdAt"
 	updatedTimeAnnotation   = "storage.hybfkuf.io/updatedAt"
 	restartedTimeAnnotation = "storage.hybfkuf.io/restartedAt"
+
+	ErrResticInitFailed   = errors.New("restic init failed")
+	ErrResticBackupFailed = errors.New("restic backup failed")
 )
 
 // podObj: 是要备份的 pv 所挂载到到 pod
 // nfs: 将数据备份到 NFS
-func BackupToNFS(ctx context.Context,
-	operatorNamespace, backupObjNamespace string,
-	backupFrom *storagev1alpha1.BackupFrom, nfs *storagev1alpha1.NFS) error {
+func BackupToNFS(ctx context.Context, operatorNamespace string,
+	backupObj *storagev1alpha1.Backup, nfs *storagev1alpha1.NFS) error {
 
 	logger := logrus.WithFields(logrus.Fields{
 		"Component": "BackupToNFS",
@@ -73,6 +75,9 @@ func BackupToNFS(ctx context.Context,
 
 		podObjList []*corev1.Pod
 		pvcList    []string
+
+		backupFrom         = backupObj.Spec.BackupFrom
+		backupObjNamespace = backupObj.GetNamespace()
 	)
 
 	// === 准备处理器
@@ -258,11 +263,11 @@ func backupByRestic(ctx context.Context, operatorNamespace, backupObjNamespace s
 		logger.Debug(initRepo)
 		// 如果 restic list keys 失败, 说明 restic repository 不存在,则需要创建一下
 		if err := podHandler.WithNamespace(operatorNamespace).ExecuteWithStream(execPod, "", strings.Split(checkRepo, " "), createPassStdin(resticPasswd, 2), io.Discard, io.Discard); err != nil {
-			logger.Errorf(`restic init failed`)
+			logrus.Error(ErrResticInitFailed.Error())
+			return ErrResticInitFailed
 		}
 	}
 
-	//logger.Debug(res.Command(restic.Backup{Tag: tags, Host: ArgHost}.SetArgs(filepath.Join(meta.pvdir, meta.pvname))))
 	logger.Debug(backupData)
 	if err := podHandler.WithNamespace(operatorNamespace).ExecuteWithStream(execPod, "", strings.Split(backupData, " "), createPassStdin(resticPasswd), io.Discard, io.Discard); err != nil {
 		logger.Errorf(`restic backup "%s" failed, maybe the directories/files do not exist in k8s node`, filepath.Join(meta.pvdir, meta.pvname))

@@ -18,6 +18,7 @@ package storage
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	storagev1alpha1 "github.com/forbearing/horus-operator/apis/storage/v1alpha1"
@@ -74,9 +75,13 @@ func (r *BackupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{}, err
 	}
 
-	if err := tools.BackupToNFS(ctx,
-		defaultOperatorNamespace, backupObj.Namespace,
-		backupObj.Spec.BackupFrom, backupObj.Spec.BackupTo.NFS); err != nil {
+	if err := tools.BackupToNFS(ctx, defaultOperatorNamespace,
+		backupObj, backupObj.Spec.BackupTo.NFS); err != nil {
+		// if errors is ErrResticInitFailed or ErrResticBackupFailed, we should
+		// finished this reconcile.
+		if errors.Is(err, tools.ErrResticInitFailed) || errors.Is(err, tools.ErrResticBackupFailed) {
+			return ctrl.Result{Requeue: false}, nil
+		}
 		return ctrl.Result{}, err
 	}
 	// =====
