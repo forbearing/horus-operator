@@ -386,7 +386,7 @@ func createBackuptonfsDeployment(
 	if backuptonfsObj, err = deployHandler.WithNamespace(operatorNamespace).Apply(backuptonfsBytes); err != nil {
 		return "", err
 	}
-	logger.Debug(`Waiting "deployment/%s" available and ready.`, backuptonfsName)
+	logger.Debugf(`Waiting "deployment/%s" available and ready.`, backuptonfsName)
 	deployHandler.WithNamespace(operatorNamespace).WaitReady(backuptonfsName)
 
 	// 先找到 backuptonfs 这个 Deployment 下所有管理的 ReplicaSet
