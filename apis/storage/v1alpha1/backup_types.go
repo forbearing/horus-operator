@@ -52,6 +52,10 @@ type BackupSpec struct {
 	// Environment variable passed to backup program.
 	// +optional
 	Env []corev1.EnvVar `json:"env"`
+
+	// TimeZone
+	// +optional
+	TimeZone string `json:"timezone"`
 }
 
 // BackupFrom defines where the data should backup from

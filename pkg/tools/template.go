@@ -28,6 +28,9 @@ spec:
       containers:
       - name: findpvdir
         image: %s
+        env:
+        - name: TZ
+          value: %s
         volumeMounts:
         - name: kubelet-home-dir
           mountPath: /var/lib/kubelet
@@ -66,6 +69,9 @@ spec:
       containers:
       - name: backup-to-nfs
         image: "%s"
+        env:
+        - name: TZ
+          value: %s
         volumeMounts:
         - name: backup-source
           mountPath: "%s"

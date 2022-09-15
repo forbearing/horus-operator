@@ -5,7 +5,7 @@ import (
 )
 
 type BackupInterface interface {
-	DoBackup(*storagev1alpha1.BackupFrom, *storagev1alpha1.BackupTo) error
+	DoBackup(*storagev1alpha1.Backup) error
 }
 
 type RestoreInterface interface {
@@ -24,6 +24,13 @@ type TrafficInterface interface {
 	DoTraffic()
 }
 
-func Backup(b BackupInterface, backupFrom *storagev1alpha1.BackupFrom, backupTo *storagev1alpha1.BackupTo) error {
-	return b.DoBackup(backupFrom, backupTo)
+func AddBackup(b BackupInterface, backup *storagev1alpha1.Backup) error {
+	return b.DoBackup(backup)
+}
+
+func DeleteBackup(b BackupInterface, backup *storagev1alpha1.Backup) error {
+	return b.DoBackup(backup)
+}
+func UpdateBackup(b BackupInterface, backup *storagev1alpha1.Backup) error {
+	return b.DoBackup(backup)
 }

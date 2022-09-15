@@ -5,9 +5,10 @@ metadata:
 spec:
   schedule: "*/1 * * * *"
   backupFrom:
-    resource: pod
-    name: k8s-tools
+    resource: deployment
+    name: nginx-deploy
   backupTo:
     nfs:
       server: 10.250.16.21
       path: /srv/nfs/restic
+  timezone: 'Asia/Shanghai'

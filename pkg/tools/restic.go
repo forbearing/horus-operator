@@ -178,7 +178,7 @@ func BackupToNFS(ctx context.Context, operatorNamespace string,
 		// deployment 配置 nodeName 和需要备份的 pod 在同一个 node 上.
 		var pvdir string
 		if pvdir, err = createFindpvdirDeployment(podHandler, deployHandler, rsHandler,
-			operatorNamespace, backupObjNamespace, nodeName, podUID); err != nil {
+			operatorNamespace, backupObj, nodeName, podUID); err != nil {
 			return fmt.Errorf("create deployment/findpvdir error: %s", err.Error())
 		}
 		if len(pvdir) == 0 {
@@ -223,7 +223,7 @@ func BackupToNFS(ctx context.Context, operatorNamespace string,
 		//   restic backup 将 pv 数据备份到 NFS 存储
 		var backuptonfsPod string
 		if backuptonfsPod, err = createBackuptonfsDeployment(podHandler, deployHandler, rsHandler,
-			operatorNamespace, backupObjNamespace, nfs, meta.pvdir, meta.nodeName); err != nil {
+			operatorNamespace, backupObj, nfs, meta.pvdir, meta.nodeName); err != nil {
 			return err
 		}
 
@@ -239,52 +239,13 @@ func BackupToNFS(ctx context.Context, operatorNamespace string,
 
 }
 
-// ArgHost 作为 restic backup --host 的参数值
-// pvpath + pv 就是实际的 pv 数据的存放路径
-func backupByRestic(ctx context.Context, operatorNamespace, backupObjNamespace string,
-	podHandler *pod.Handler, backupFrom *storagev1alpha1.BackupFrom,
-	execPod string, pvc string, meta pvdataMeta, ArgHost string) error {
-
-	logger := logrus.WithFields(logrus.Fields{
-		"Component": "restic",
-	})
-	logrus.SetLevel(logrus.DebugLevel)
-
-	res := restic.NewIgnoreNotFound(ctx, &restic.GlobalFlags{NoCache: true, Repo: resticRepo, Verbose: 3})
-	tags := []string{string(backupFrom.Resource), defaultClusterName, backupObjNamespace, backupFrom.Name, pvc}
-	CmdCheckRepo := res.Command(restic.List{}.SetArgs("keys")).String()
-	CmdInitRepo := res.Command(restic.Init{}).String()
-	CmdBackup := res.Command(restic.Backup{Tag: tags, Host: ArgHost}.SetArgs(filepath.Join(meta.pvdir, meta.pvname))).String()
-
-	logger.Debug(CmdCheckRepo)
-	// 如果 restic list keys 失败, 说明 restic repository 不存在,则需要创建一下
-	if err := podHandler.WithNamespace(operatorNamespace).ExecuteWithStream(execPod, "", strings.Split(CmdCheckRepo, " "),
-		createPassStdin(resticPasswd, 1), io.Discard, io.Discard); err != nil {
-		// 需要输入两遍密码, 一定需要输入两个 "\n", 否则 "restic init" 会一直卡在这里
-		// 如果 restic list keys 失败, 说明 restic repository 不存在,则需要创建一下
-		logger.Debug(CmdInitRepo)
-		if err := podHandler.WithNamespace(operatorNamespace).ExecuteWithStream(execPod, "", strings.Split(CmdInitRepo, " "),
-			createPassStdin(resticPasswd, 2), io.Discard, io.Discard); err != nil {
-			logrus.Error(ErrResticInitFailed.Error())
-			return ErrResticInitFailed
-		}
-	}
-
-	logger.Debug(CmdBackup)
-	if err := podHandler.WithNamespace(operatorNamespace).ExecuteWithStream(execPod, "", strings.Split(CmdBackup, " "),
-		createPassStdin(resticPasswd), io.Discard, io.Discard); err != nil {
-		logger.Errorf(`restic backup "%s" failed, maybe the directories/files do not exist in k8s node`, filepath.Join(meta.pvdir, meta.pvname))
-	}
-
-	return nil
-}
-
 // createFindpvdirDeployment
 func createFindpvdirDeployment(
 	podHandler *pod.Handler,
 	deployHandler *deployment.Handler,
 	rsHandler *replicaset.Handler,
-	operatorNamespace, backupObjNamespace string,
+	operatorNamespace string,
+	backupObj *storagev1alpha1.Backup,
 	nodeName, podUID string) (string, error) {
 
 	var (
@@ -305,7 +266,7 @@ func createFindpvdirDeployment(
 	findpvdirBytes := []byte(fmt.Sprintf(findpvdirDeploymentTemplate,
 		findpvdirName, operatorNamespace,
 		updatedTimeAnnotation, time.Now().Format(time.RFC3339),
-		nodeName, findpvdirImage))
+		nodeName, findpvdirImage, backupObj.Spec.TimeZone))
 	if findpvdirObj, err = deployHandler.WithNamespace(operatorNamespace).Apply(findpvdirBytes); err != nil {
 		return "", fmt.Errorf(`deployment handler apply "deployment/%s" failed: %s`, findpvdirName, err.Error())
 	}
@@ -361,7 +322,8 @@ func createBackuptonfsDeployment(
 	podHandler *pod.Handler,
 	deployHandler *deployment.Handler,
 	rsHandler *replicaset.Handler,
-	operatorNamespace, backupObjNamespace string,
+	operatorNamespace string,
+	backupObj *storagev1alpha1.Backup,
 	nfs *storagev1alpha1.NFS,
 	pvdir, nodeName string) (string, error) {
 
@@ -388,7 +350,7 @@ func createBackuptonfsDeployment(
 	backuptonfsBytes := []byte(fmt.Sprintf(backuptonfsDeploymentTemplate,
 		backuptonfsName, operatorNamespace,
 		updatedTimeAnnotation, time.Now().Format(time.RFC3339),
-		nodeName, backuptonfsImage,
+		nodeName, backuptonfsImage, backupObj.Spec.TimeZone,
 		pvdir, pvdir,
 		nfs.Server, nfs.Path))
 	if backuptonfsObj, err = deployHandler.WithNamespace(operatorNamespace).Apply(backuptonfsBytes); err != nil {
@@ -421,4 +383,44 @@ func createBackuptonfsDeployment(
 
 	}
 	return backuptonfsPod.Name, nil
+}
+
+// ArgHost 作为 restic backup --host 的参数值
+// pvpath + pv 就是实际的 pv 数据的存放路径
+func backupByRestic(ctx context.Context, operatorNamespace, backupObjNamespace string,
+	podHandler *pod.Handler, backupFrom *storagev1alpha1.BackupFrom,
+	execPod string, pvc string, meta pvdataMeta, ArgHost string) error {
+
+	logger := logrus.WithFields(logrus.Fields{
+		"Component": "restic",
+	})
+	logrus.SetLevel(logrus.DebugLevel)
+
+	res := restic.NewIgnoreNotFound(ctx, &restic.GlobalFlags{NoCache: true, Repo: resticRepo, Verbose: 3})
+	tags := []string{string(backupFrom.Resource), defaultClusterName, backupObjNamespace, backupFrom.Name, pvc}
+	CmdCheckRepo := res.Command(restic.List{}.SetArgs("keys")).String()
+	CmdInitRepo := res.Command(restic.Init{}).String()
+	CmdBackup := res.Command(restic.Backup{Tag: tags, Host: ArgHost}.SetArgs(filepath.Join(meta.pvdir, meta.pvname))).String()
+
+	logger.Debug(CmdCheckRepo)
+	// 如果 restic list keys 失败, 说明 restic repository 不存在,则需要创建一下
+	if err := podHandler.WithNamespace(operatorNamespace).ExecuteWithStream(execPod, "", strings.Split(CmdCheckRepo, " "),
+		createPassStdin(resticPasswd, 1), io.Discard, io.Discard); err != nil {
+		// 需要输入两遍密码, 一定需要输入两个 "\n", 否则 "restic init" 会一直卡在这里
+		// 如果 restic list keys 失败, 说明 restic repository 不存在,则需要创建一下
+		logger.Debug(CmdInitRepo)
+		if err := podHandler.WithNamespace(operatorNamespace).ExecuteWithStream(execPod, "", strings.Split(CmdInitRepo, " "),
+			createPassStdin(resticPasswd, 2), io.Discard, io.Discard); err != nil {
+			logrus.Error(ErrResticInitFailed.Error())
+			return ErrResticInitFailed
+		}
+	}
+
+	logger.Debug(CmdBackup)
+	if err := podHandler.WithNamespace(operatorNamespace).ExecuteWithStream(execPod, "", strings.Split(CmdBackup, " "),
+		createPassStdin(resticPasswd), io.Discard, io.Discard); err != nil {
+		logger.Errorf(`restic backup "pvc/%s" failed, maybe the directory/file of "%s" do not exist in k8s node`, pvc, filepath.Join(meta.pvdir, meta.pvname))
+	}
+
+	return nil
 }

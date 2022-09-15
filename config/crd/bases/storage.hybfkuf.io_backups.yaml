@@ -604,6 +604,9 @@ spec:
               schedule:
                 description: The schedule in Cron format, see https://en.wikipedia.org/wiki/Cron.
                 type: string
+              timezone:
+                description: TimeZone
+                type: string
             required:
             - backupFrom
             - backupTo
