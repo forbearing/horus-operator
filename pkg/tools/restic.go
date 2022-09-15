@@ -252,24 +252,27 @@ func backupByRestic(ctx context.Context, operatorNamespace, backupObjNamespace s
 
 	res := restic.NewIgnoreNotFound(ctx, &restic.GlobalFlags{NoCache: true, Repo: resticRepo, Verbose: 3})
 	tags := []string{string(backupFrom.Resource), defaultClusterName, backupObjNamespace, backupFrom.Name, pvc}
-	checkRepo := res.Command(restic.List{}.SetArgs("keys")).String()
-	initRepo := res.Command(restic.Init{}).String()
-	backupData := res.Command(restic.Backup{Tag: tags, Host: ArgHost}.SetArgs(filepath.Join(meta.pvdir, meta.pvname))).String()
+	CmdCheckRepo := res.Command(restic.List{}.SetArgs("keys")).String()
+	CmdInitRepo := res.Command(restic.Init{}).String()
+	CmdBackup := res.Command(restic.Backup{Tag: tags, Host: ArgHost}.SetArgs(filepath.Join(meta.pvdir, meta.pvname))).String()
 
-	logger.Debug(checkRepo)
+	logger.Debug(CmdCheckRepo)
 	// 如果 restic list keys 失败, 说明 restic repository 不存在,则需要创建一下
-	if err := podHandler.WithNamespace(operatorNamespace).ExecuteWithStream(execPod, "", strings.Split(checkRepo, " "), createPassStdin(resticPasswd, 1), io.Discard, io.Discard); err != nil {
+	if err := podHandler.WithNamespace(operatorNamespace).ExecuteWithStream(execPod, "", strings.Split(CmdCheckRepo, " "),
+		createPassStdin(resticPasswd, 1), io.Discard, io.Discard); err != nil {
 		// 需要输入两遍密码, 一定需要输入两个 "\n", 否则 "restic init" 会一直卡在这里
-		logger.Debug(initRepo)
 		// 如果 restic list keys 失败, 说明 restic repository 不存在,则需要创建一下
-		if err := podHandler.WithNamespace(operatorNamespace).ExecuteWithStream(execPod, "", strings.Split(checkRepo, " "), createPassStdin(resticPasswd, 2), io.Discard, io.Discard); err != nil {
+		logger.Debug(CmdInitRepo)
+		if err := podHandler.WithNamespace(operatorNamespace).ExecuteWithStream(execPod, "", strings.Split(CmdInitRepo, " "),
+			createPassStdin(resticPasswd, 2), io.Discard, io.Discard); err != nil {
 			logrus.Error(ErrResticInitFailed.Error())
 			return ErrResticInitFailed
 		}
 	}
 
-	logger.Debug(backupData)
-	if err := podHandler.WithNamespace(operatorNamespace).ExecuteWithStream(execPod, "", strings.Split(backupData, " "), createPassStdin(resticPasswd), io.Discard, io.Discard); err != nil {
+	logger.Debug(CmdBackup)
+	if err := podHandler.WithNamespace(operatorNamespace).ExecuteWithStream(execPod, "", strings.Split(CmdBackup, " "),
+		createPassStdin(resticPasswd), io.Discard, io.Discard); err != nil {
 		logger.Errorf(`restic backup "%s" failed, maybe the directories/files do not exist in k8s node`, filepath.Join(meta.pvdir, meta.pvname))
 	}
 
