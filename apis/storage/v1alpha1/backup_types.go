@@ -56,6 +56,10 @@ type BackupSpec struct {
 	// TimeZone
 	// +optional
 	TimeZone string `json:"timezone"`
+
+	// Cluster Name
+	// +optional
+	Cluster string `json:"cluster"`
 }
 
 // BackupFrom defines where the data should backup from
