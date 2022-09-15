@@ -62,7 +62,6 @@ func BackupToNFS(ctx context.Context, operatorNamespace string,
 		"Component": "BackupToNFS",
 		"Storage":   "NFS",
 	})
-	logger.Logger.SetLevel(logrus.DebugLevel)
 
 	var (
 		err           error
@@ -102,7 +101,7 @@ func BackupToNFS(ctx context.Context, operatorNamespace string,
 
 	switch backupFrom.Resource {
 	case storagev1alpha1.PodResource:
-		logger.Infof(`Starting to backup "pod/%s"`, backupFrom.Name)
+		logger.Infof(`Start Backup "pod/%s"`, backupFrom.Name)
 		podObj, err := podHandler.WithNamespace(backupObjNamespace).Get(backupFrom.Name)
 		if err != nil {
 			return fmt.Errorf("pod handler get pod error: %s", err.Error())
@@ -112,7 +111,7 @@ func BackupToNFS(ctx context.Context, operatorNamespace string,
 			return fmt.Errorf("pod handler get persistentvolumeclaim error: %s", err.Error())
 		}
 	case storagev1alpha1.DeploymentResource:
-		logger.Infof(`Starting to backup "deployment/%s"`, backupFrom.Name)
+		logger.Infof(`Start Backup "deployment/%s"`, backupFrom.Name)
 		if podObjList, err = deployHandler.WithNamespace(backupObjNamespace).GetPods(backupFrom.Name); err != nil {
 			return fmt.Errorf("deployment handler get pod error: %s", err.Error())
 		}
@@ -120,7 +119,7 @@ func BackupToNFS(ctx context.Context, operatorNamespace string,
 			return fmt.Errorf("deployment handler get persistentvolumeclaim error: %s", err.Error())
 		}
 	case storagev1alpha1.StatefulSetResource:
-		logger.Infof(`Starting to backup "statefulset/%s"`, backupFrom.Name)
+		logger.Infof(`Start Backup "statefulset/%s"`, backupFrom.Name)
 		if podObjList, err = stsHandler.WithNamespace(backupObjNamespace).GetPods(backupFrom.Name); err != nil {
 			return fmt.Errorf("statefulset handler get pod error: %s", err.Error())
 		}
@@ -128,7 +127,7 @@ func BackupToNFS(ctx context.Context, operatorNamespace string,
 			return fmt.Errorf("statefulset handler get persistentvolumeclaim error: %s", err.Error())
 		}
 	case storagev1alpha1.DaemonSetResource:
-		logger.Infof(`Starting to backup "daemonset/%s"`, backupFrom.Name)
+		logger.Infof(`Start Backup "daemonset/%s"`, backupFrom.Name)
 		if podObjList, err = dsHandler.WithNamespace(backupObjNamespace).GetPods(backupFrom.Name); err != nil {
 			return fmt.Errorf("daemonset handler get pod error: %s", err.Error())
 		}
@@ -139,6 +138,7 @@ func BackupToNFS(ctx context.Context, operatorNamespace string,
 		return errors.New("Not Support backup object")
 	}
 
+	beginTime := time.Now()
 	// pvcpvMap 存在的意义: 不要重复备份同一个 pvc
 	// 因为有些 pvc  为 ReadWriteMany 模式, 当一个 deployment 下的多个 pod 同时
 	// 挂载了同一个 pvc, 默认会对这个 pvc 备份多次, 这完全没必要, 只需要备份一次即可
@@ -212,8 +212,6 @@ func BackupToNFS(ctx context.Context, operatorNamespace string,
 		logger.Debugf("%v: %v", pvc, meta)
 	}
 
-	//select {}
-
 	for pvc, meta := range pvcpvMap {
 		// === 3.创建 deployment/backup-to-nfs, 通过 restic 备份工具来备份实际的  pv 数据,
 		// deployment 挂载需要备份的 pod 的 pv,
@@ -228,13 +226,17 @@ func BackupToNFS(ctx context.Context, operatorNamespace string,
 		}
 
 		// === 5.通过 restic 备份工具开始备份
-		time.Sleep(time.Second * 3)
+		beginTime := time.Now()
+		logger.Infof(`Start Backup "pvc/%s"`, pvc)
 		if err = backupByRestic(ctx, operatorNamespace, backupObjNamespace, podHandler,
 			backupFrom, backuptonfsPod, pvc, meta, HostBackupToNFS); err != nil {
 			return err
 		}
+		costedTime := time.Now().Sub(beginTime)
+		logger.Infof(`Successfully Backup "pvc/%s", It Took %v`, pvc, costedTime)
 	}
-	logger.Info("Successfully Backup to NFS Server")
+	costedTime := time.Now().Sub(beginTime)
+	logger.Infof("Successfully Backup to NFS Server, It Took %v", costedTime)
 	return nil
 
 }
@@ -261,7 +263,7 @@ func createFindpvdirDeployment(
 	logger := logrus.WithFields(logrus.Fields{
 		"Component": findpvdirName,
 	})
-	logger.Logger.SetLevel(logrus.DebugLevel)
+	//logger.Logger.SetLevel(logrus.DebugLevel)
 
 	findpvdirBytes := []byte(fmt.Sprintf(findpvdirDeploymentTemplate,
 		findpvdirName, operatorNamespace,
@@ -341,7 +343,7 @@ func createBackuptonfsDeployment(
 	logger := logrus.WithFields(logrus.Fields{
 		"Component": "backuptonfs",
 	})
-	logger.Logger.SetLevel(logrus.DebugLevel)
+	//logger.Logger.SetLevel(logrus.DebugLevel)
 
 	// pvpath 示例: /var/lib/kubelet/pods/00b224d7-e9c5-42d3-94ca-516a99274a66/volumes/kubernetes.io~nfs
 	// pvpath 格式为: /var/lib/kubelet/pods + pod UID + volumes + pvc 类型
@@ -394,7 +396,7 @@ func backupByRestic(ctx context.Context, operatorNamespace, backupObjNamespace s
 	logger := logrus.WithFields(logrus.Fields{
 		"Component": "restic",
 	})
-	logrus.SetLevel(logrus.DebugLevel)
+	//logrus.SetLevel(logrus.DebugLevel)
 
 	res := restic.NewIgnoreNotFound(ctx, &restic.GlobalFlags{NoCache: true, Repo: resticRepo, Verbose: 3})
 	tags := []string{string(backupFrom.Resource), defaultClusterName, backupObjNamespace, backupFrom.Name, pvc}
