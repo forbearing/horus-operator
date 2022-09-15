@@ -97,7 +97,7 @@ func BackupToNFS(ctx context.Context,
 
 	switch backupFrom.Resource {
 	case storagev1alpha1.PodResource:
-		logger.Infof(`Start to backup "pod/%s"`, backupFrom.Name)
+		logger.Infof(`Starting to backup "pod/%s"`, backupFrom.Name)
 		podObj, err := podHandler.WithNamespace(backupObjNamespace).Get(backupFrom.Name)
 		if err != nil {
 			return fmt.Errorf("pod handler get pod error: %s", err.Error())
@@ -107,7 +107,7 @@ func BackupToNFS(ctx context.Context,
 			return fmt.Errorf("pod handler get persistentvolumeclaim error: %s", err.Error())
 		}
 	case storagev1alpha1.DeploymentResource:
-		logger.Infof(`Start to backup "deployment/%s"`, backupFrom.Name)
+		logger.Infof(`Starting to backup "deployment/%s"`, backupFrom.Name)
 		if podObjList, err = deployHandler.WithNamespace(backupObjNamespace).GetPods(backupFrom.Name); err != nil {
 			return fmt.Errorf("deployment handler get pod error: %s", err.Error())
 		}
@@ -115,7 +115,7 @@ func BackupToNFS(ctx context.Context,
 			return fmt.Errorf("deployment handler get persistentvolumeclaim error: %s", err.Error())
 		}
 	case storagev1alpha1.StatefulSetResource:
-		logger.Infof(`Start to backup "statefulset/%s"`, backupFrom.Name)
+		logger.Infof(`Starting to backup "statefulset/%s"`, backupFrom.Name)
 		if podObjList, err = stsHandler.WithNamespace(backupObjNamespace).GetPods(backupFrom.Name); err != nil {
 			return fmt.Errorf("statefulset handler get pod error: %s", err.Error())
 		}
@@ -123,7 +123,7 @@ func BackupToNFS(ctx context.Context,
 			return fmt.Errorf("statefulset handler get persistentvolumeclaim error: %s", err.Error())
 		}
 	case storagev1alpha1.DaemonSetResource:
-		logger.Infof(`Start to backup "daemonset/%s"`, backupFrom.Name)
+		logger.Infof(`Starting to backup "daemonset/%s"`, backupFrom.Name)
 		if podObjList, err = dsHandler.WithNamespace(backupObjNamespace).GetPods(backupFrom.Name); err != nil {
 			return fmt.Errorf("daemonset handler get pod error: %s", err.Error())
 		}
@@ -186,7 +186,7 @@ func BackupToNFS(ctx context.Context,
 		if err != nil {
 			return fmt.Errorf("pod handler get persistentvolumeclaim faile: %s", err.Error())
 		}
-		logger.Debugf(`The persistentvolumeclaim mounted by "pod/%s" are: %v`, podObj.Name, pvcList)
+		logger.Debugf(`The persistentvolumeclaims mounted by "pod/%s" are: %v`, podObj.Name, pvcList)
 
 		for _, pvc := range pvcList {
 			if _, ok := pvcpvMap[pvc]; !ok {
@@ -301,7 +301,7 @@ func createFindpvdirDeployment(
 	if findpvdirObj, err = deployHandler.WithNamespace(operatorNamespace).Apply(findpvdirBytes); err != nil {
 		return "", fmt.Errorf(`deployment handler apply "deployment/%s" failed: %s`, findpvdirName, err.Error())
 	}
-	logger.Debug("Waiting deployment/findpvdir ready.")
+	logger.Debugf(`Waiting "deployment/%s" available and ready.`, findpvdirName)
 	deployHandler.WithNamespace(operatorNamespace).WaitReady(findpvdirName)
 
 	// 使用 findpvdirObj 作为参数传入而不是使用 findpvdirName 作为参数传入,
@@ -331,7 +331,7 @@ func createFindpvdirDeployment(
 	for i := range findpvdirPods {
 		findpvdirPod = findpvdirPods[i]
 		if findpvdirPod.Status.Phase == corev1.PodRunning {
-			logger.Debugf(`Find persistentvolume data directory path by execute command within this pod: "%s"`, findpvdirPod.Name)
+			logger.Debugf(`Finding persistentvolume data directory path by execute command within "pod/%s"`, findpvdirPod.Name)
 			break
 		}
 	}
@@ -386,7 +386,7 @@ func createBackuptonfsDeployment(
 	if backuptonfsObj, err = deployHandler.WithNamespace(operatorNamespace).Apply(backuptonfsBytes); err != nil {
 		return "", err
 	}
-	logger.Debug("Waiting deployment/backuptonfs ready.")
+	logger.Debug(`Waiting "deployment/%s" available and ready.`, backuptonfsName)
 	deployHandler.WithNamespace(operatorNamespace).WaitReady(backuptonfsName)
 
 	// 先找到 backuptonfs 这个 Deployment 下所有管理的 ReplicaSet
@@ -407,7 +407,7 @@ func createBackuptonfsDeployment(
 	for i := range backuptonfsPods {
 		backuptonfsPod = backuptonfsPods[i]
 		if backuptonfsPod.Status.Phase == corev1.PodRunning {
-			logger.Debugf(`Execute restic command to backup persistentvolume data within this pod: "%s"`, backuptonfsPod.Name)
+			logger.Debugf(`Executing restic command to backup persistentvolume data within "pod/%s"`, backuptonfsPod.Name)
 			break
 		}
 
