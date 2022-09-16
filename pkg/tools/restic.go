@@ -106,6 +106,7 @@ func BackupToNFS(ctx context.Context, operatorNamespace string,
 		logger.Infof("Start Backup pod/%s", backupFrom.Name)
 		podObj, err := podHandler.Get(backupFrom.Name)
 		if err != nil {
+			// if the Pod resource not found, skip backup
 			if apierrors.IsNotFound(err) {
 				logger.Warnf("pod/%s not found in namespace %s, skip backup", backupFrom.Name, backupObjNamespace)
 				return nil
@@ -151,7 +152,13 @@ func BackupToNFS(ctx context.Context, operatorNamespace string,
 			return fmt.Errorf("daemonset handler get persistentvolumeclaim error: %s", err.Error())
 		}
 	default:
-		return errors.New("Not Support backup object")
+		logger.Error("Not support backup object(must be pod|deployment|statefulset|daemonset)")
+		return nil
+	}
+	// if there is no persistentvolumeclaim mounted by the backup target resource, skip backup
+	if len(pvcList) == 0 {
+		logger.Warnf("There is no pvc mounted by the %s/%s, skip backup", backupFrom.Resource, backupFrom.Name)
+		return nil
 	}
 
 	beginTime := time.Now()
@@ -424,15 +431,15 @@ func backupByRestic(ctx context.Context,
 		logger.Debug(CmdInitRepo)
 		if err := podHandler.ExecuteWithStream(execPod, "", strings.Split(CmdInitRepo, " "),
 			createPassStdin(resticPasswd, 2), io.Discard, io.Discard); err != nil {
-			logrus.Error(ErrResticInitFailed.Error())
-			return ErrResticInitFailed
+			logger.Error(ErrResticInitFailed.Error())
+			return nil
 		}
 	}
 
 	logger.Debug(CmdBackup)
 	if err := podHandler.WithNamespace(operatorNamespace).ExecuteWithStream(execPod, "", strings.Split(CmdBackup, " "),
 		createPassStdin(resticPasswd), io.Discard, io.Discard); err != nil {
-		logger.Errorf("restic backup pvc/%s failed, maybe the directory/file of %s do not exist in k8s node", pvc, filepath.Join(meta.pvdir, meta.pvname))
+		logger.Errorf("Restic backup pvc/%s failed, maybe the directory/file of %s do not exist in k8s node", pvc, filepath.Join(meta.pvdir, meta.pvname))
 	}
 
 	return nil
