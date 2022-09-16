@@ -18,13 +18,15 @@ spec:
       app.kubernetes.io/part-of: horus-operator
   template:
     metadata:
-      annotations:
-        %s: %s
+      #annotations:
+      #  %s: %s
       labels:
         app.kubernetes.io/name: findpvdir
         app.kubernetes.io/part-of: horus-operator
     spec:
       nodeName: %s
+      tolerations:
+      - operator: Exists
       containers:
       - name: findpvdir
         image: %s
@@ -59,13 +61,15 @@ spec:
       app.kubernetes.io/part-of: horus-operator
   template:
     metadata:
-      annotations:
-        %s: %s
+      #annotations:
+      #  %s: %s
       labels:
         app.kubernetes.io/name: backup-to-nfs
         app.kubernetes.io/part-of: horus-operator
     spec:
       nodeName: "%s"
+      tolerations:
+      - operator: Exists
       containers:
       - name: backup-to-nfs
         image: "%s"
@@ -73,16 +77,16 @@ spec:
         - name: TZ
           value: %s
         volumeMounts:
-        - name: backup-source
-          mountPath: "%s"
+        - name: kubelet-home-dir
+          mountPath: /var/lib/kubelet
           readOnly: true
         - name: restic-repo
           mountPath: "/restic-repo"
           readOnly: false
       volumes:
-      - name: "backup-source"
+      - name: kubelet-home-dir
         hostPath:
-          path: "%s"
+          path: /var/lib/kubelet
           type: Directory
       - name: restic-repo
         nfs:

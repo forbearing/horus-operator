@@ -58,9 +58,9 @@ func Init() {
 		logrus.SetOutput(file)
 	}
 
-	//// SetReportCaller sets whether the standard logrus will include the calling
-	//// method as a field.
-	//logrus.SetReportCaller(false)
+	// SetReportCaller sets whether the standard logrus will include the calling
+	// method as a field.
+	//logrus.SetReportCaller(true)
 }
 
 func New() *logrus.Logger {
