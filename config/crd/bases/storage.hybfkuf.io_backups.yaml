@@ -48,10 +48,6 @@ spec:
                 - name
                 - resource
                 type: object
-              backupTimeout:
-                description: BackupTimeout
-                format: date-time
-                type: string
               backupTo:
                 description: 'BackupTo specifies where the data shoud be backup to
                   currently supported: cephfs, nfs, persistentVolumeClaim, S3, Minio,
@@ -491,6 +487,9 @@ spec:
                     - port
                     type: object
                 type: object
+              cluster:
+                description: Cluster Name
+                type: string
               env:
                 description: Environment variable passed to backup program.
                 items:
@@ -603,6 +602,9 @@ spec:
                 type: integer
               schedule:
                 description: The schedule in Cron format, see https://en.wikipedia.org/wiki/Cron.
+                type: string
+              timeout:
+                description: backup timeout
                 type: string
               timezone:
                 description: TimeZone

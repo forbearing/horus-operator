@@ -12,3 +12,4 @@ spec:
       server: 10.250.16.21
       path: /srv/nfs/restic
   timezone: 'Asia/Shanghai'
+  timeout: 10m
