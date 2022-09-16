@@ -22,6 +22,7 @@ import (
 	"github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
 type pvdataMeta struct {
@@ -102,9 +103,13 @@ func BackupToNFS(ctx context.Context, operatorNamespace string,
 
 	switch backupFrom.Resource {
 	case storagev1alpha1.PodResource:
-		logger.Infof(`Start Backup "pod/%s"`, backupFrom.Name)
+		logger.Infof("Start Backup pod/%s", backupFrom.Name)
 		podObj, err := podHandler.Get(backupFrom.Name)
 		if err != nil {
+			if apierrors.IsNotFound(err) {
+				logger.Warnf("pod/%s not found in namespace %s, skip backup", backupFrom.Name, backupObjNamespace)
+				return nil
+			}
 			return fmt.Errorf("pod handler get pod error: %s", err.Error())
 		}
 		podObjList = append(podObjList, podObj)
@@ -112,24 +117,34 @@ func BackupToNFS(ctx context.Context, operatorNamespace string,
 			return fmt.Errorf("pod handler get persistentvolumeclaim error: %s", err.Error())
 		}
 	case storagev1alpha1.DeploymentResource:
-		logger.Infof(`Start Backup "deployment/%s"`, backupFrom.Name)
+		logger.Infof("Start Backup deployment/%s", backupFrom.Name)
 		if podObjList, err = deployHandler.GetPods(backupFrom.Name); err != nil {
+			if apierrors.IsNotFound(err) {
+				logger.Warnf("deployment/%s not found in namespace %s, skip backup", backupFrom.Name, backupObjNamespace)
+				return nil
+			}
 			return fmt.Errorf("deployment handler get pod error: %s", err.Error())
 		}
 		if pvcList, err = deployHandler.GetPVC(backupFrom.Name); err != nil {
 			return fmt.Errorf("deployment handler get persistentvolumeclaim error: %s", err.Error())
 		}
 	case storagev1alpha1.StatefulSetResource:
-		logger.Infof(`Start Backup "statefulset/%s"`, backupFrom.Name)
+		logger.Infof("Start Backup statefulset/%s", backupFrom.Name)
 		if podObjList, err = stsHandler.GetPods(backupFrom.Name); err != nil {
+			if apierrors.IsNotFound(err) {
+				logger.Warnf("statefulset/%s not found in namespace %s, skip backup", backupFrom.Name, backupObjNamespace)
+			}
 			return fmt.Errorf("statefulset handler get pod error: %s", err.Error())
 		}
 		if pvcList, err = stsHandler.GetPVC(backupFrom.Name); err != nil {
 			return fmt.Errorf("statefulset handler get persistentvolumeclaim error: %s", err.Error())
 		}
 	case storagev1alpha1.DaemonSetResource:
-		logger.Infof(`Start Backup "daemonset/%s"`, backupFrom.Name)
+		logger.Infof("Start Backup daemonset/%s", backupFrom.Name)
 		if podObjList, err = dsHandler.GetPods(backupFrom.Name); err != nil {
+			if apierrors.IsNotFound(err) {
+				logger.Warnf("daemonset/%s not found in namespace %s, skip backup", backupFrom.Name, backupObjNamespace)
+			}
 			return fmt.Errorf("daemonset handler get pod error: %s", err.Error())
 		}
 		if pvcList, err = dsHandler.GetPVC(backupFrom.Name); err != nil {
@@ -187,11 +202,11 @@ func BackupToNFS(ctx context.Context, operatorNamespace string,
 		if err != nil {
 			return fmt.Errorf("pod handler get persistentvolumeclaim faile: %s", err.Error())
 		}
-		logger.Debugf(`The persistentvolumeclaims mounted by "pod/%s" are: %v`, podObj.Name, pvcList)
+		logger.Debugf("The persistentvolumeclaims mounted by pod/%s are: %v", podObj.Name, pvcList)
 
 		for _, pvc := range pvcList {
 			if _, ok := pvcpvMap[pvc]; !ok {
-				logger.Warnf(`"persistentvolumeclaim/%s" not found`, pvc)
+				logger.Warnf("persistentvolumeclaim/%s not found", pvc)
 				continue
 			}
 			pvname := pvcpvMap[pvc].pvname
@@ -222,15 +237,18 @@ func BackupToNFS(ctx context.Context, operatorNamespace string,
 		}
 
 		// === 4.通过 restic 备份工具开始备份
-		logger.Infof(`Start Backup "pvc/%s"`, pvc)
+		logger.Infof("Start Backup pvc/%s", pvc)
+		beginTime := time.Now()
 		if err = backupByRestic(ctx,
 			operatorNamespace, backupObj,
 			podHandler, backuptonfsPod, pvc, meta, HostBackupToNFS); err != nil {
 			return err
 		}
+		costedTime := time.Now().Sub(beginTime)
+		logger.WithField("Cost", costedTime.String()).Infof("Successfully Backup pvc/%s", pvc)
 	}
 	costedTime := time.Now().Sub(beginTime)
-	logger.Infof("Successfully Backup to NFS Server, It Took %v", costedTime)
+	logger.WithField("Cost", costedTime.String()).Infof("Successfully Backup The PV/PVC Mounted by %s/%s to NFS Server", backupFrom.Resource, backupFrom.Name)
 	return nil
 
 }
@@ -261,9 +279,9 @@ func createFindpvdirDeployment(podHandler *pod.Handler, deployHandler *deploymen
 		updatedTimeAnnotation, time.Now().Format(time.RFC3339),
 		nodeName, findpvdirImage, backupObj.Spec.TimeZone))
 	if findpvdirObj, err = deployHandler.Apply(findpvdirBytes); err != nil {
-		return "", fmt.Errorf(`deployment handler apply "deployment/%s" failed: %s`, findpvdirName, err.Error())
+		return "", fmt.Errorf("deployment handler apply deployment/%s failed: %s", findpvdirName, err.Error())
 	}
-	logger.Debugf(`Waiting "deployment/%s" to be available and ready.`, findpvdirName)
+	logger.Debugf("Waiting deployment/%s to be available and ready.", findpvdirName)
 	deployHandler.WaitReady(findpvdirName)
 
 	// 使用 findpvdirObj 作为参数传入而不是使用 findpvdirName 作为参数传入,
@@ -293,7 +311,7 @@ func createFindpvdirDeployment(podHandler *pod.Handler, deployHandler *deploymen
 	for i := range findpvdirPods {
 		findpvdirPod = findpvdirPods[i]
 		if findpvdirPod.Status.Phase == corev1.PodRunning {
-			logger.Debugf(`Finding persistentvolume data directory path by execute command within "pod/%s"`, findpvdirPod.Name)
+			logger.Debugf("Finding persistentvolume data directory path by execute command within pod/%s", findpvdirPod.Name)
 			break
 		}
 	}
@@ -346,7 +364,7 @@ func createBackuptonfsDeployment(podHandler *pod.Handler, deployHandler *deploym
 	if backuptonfsObj, err = deployHandler.Apply(backuptonfsBytes); err != nil {
 		return "", err
 	}
-	logger.Debugf(`Waiting "deployment/%s" to be available and ready.`, backuptonfsName)
+	logger.Debugf("Waiting deployment/%s to be available and ready.", backuptonfsName)
 	deployHandler.WaitReady(backuptonfsName)
 
 	// 先找到 backuptonfs 这个 Deployment 下所有管理的 ReplicaSet
@@ -367,7 +385,7 @@ func createBackuptonfsDeployment(podHandler *pod.Handler, deployHandler *deploym
 	for i := range backuptonfsPods {
 		backuptonfsPod = backuptonfsPods[i]
 		if backuptonfsPod.Status.Phase == corev1.PodRunning {
-			logger.Debugf(`Executing restic command to backup persistentvolume data within "pod/%s"`, backuptonfsPod.Name)
+			logger.Debugf("Executing restic command to backup persistentvolume data within pod/%s", backuptonfsPod.Name)
 			break
 		}
 
@@ -385,14 +403,13 @@ func backupByRestic(ctx context.Context,
 	podHandler.ResetNamespace(operatorNamespace)
 	logger := logrus.WithFields(logrus.Fields{
 		"Component": "restic",
-		"Resource":  "persistentvolumeclaim",
-		"Name":      pvc,
 	})
 	clusterName := backupObj.Spec.Cluster
 	if len(clusterName) == 0 {
 		clusterName = defaultClusterName
 	}
-	res := restic.NewIgnoreNotFound(ctx, &restic.GlobalFlags{NoCache: true, Repo: resticRepo, Verbose: 3})
+	//res := restic.NewIgnoreNotFound(ctx, &restic.GlobalFlags{NoCache: true, Repo: resticRepo, Verbose: 3})
+	res := restic.NewIgnoreNotFound(ctx, &restic.GlobalFlags{NoCache: true, Repo: resticRepo})
 	tags := []string{string(backupObj.Spec.BackupFrom.Resource), clusterName, backupObj.Namespace, backupObj.Spec.BackupFrom.Name, pvc}
 	CmdCheckRepo := res.Command(restic.List{}.SetArgs("keys")).String()
 	CmdInitRepo := res.Command(restic.Init{}).String()
@@ -413,13 +430,10 @@ func backupByRestic(ctx context.Context,
 	}
 
 	logger.Debug(CmdBackup)
-	beginTime := time.Now()
 	if err := podHandler.WithNamespace(operatorNamespace).ExecuteWithStream(execPod, "", strings.Split(CmdBackup, " "),
 		createPassStdin(resticPasswd), io.Discard, io.Discard); err != nil {
-		logger.Errorf(`restic backup "pvc/%s" failed, maybe the directory/file of "%s" do not exist in k8s node`, pvc, filepath.Join(meta.pvdir, meta.pvname))
+		logger.Errorf("restic backup pvc/%s failed, maybe the directory/file of %s do not exist in k8s node", pvc, filepath.Join(meta.pvdir, meta.pvname))
 	}
-	costedTime := time.Now().Sub(beginTime)
-	logger.Infof("Successfully Backup, It Took %v", costedTime)
 
 	return nil
 }
