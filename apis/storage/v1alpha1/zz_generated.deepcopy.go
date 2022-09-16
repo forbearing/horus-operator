@@ -113,7 +113,7 @@ func (in *BackupSpec) DeepCopyInto(out *BackupSpec) {
 		*out = new(BackupTo)
 		(*in).DeepCopyInto(*out)
 	}
-	in.BackupTimeout.DeepCopyInto(&out.BackupTimeout)
+	out.Timeout = in.Timeout
 	if in.Env != nil {
 		in, out := &in.Env, &out.Env
 		*out = make([]v1.EnvVar, len(*in))

@@ -45,9 +45,9 @@ type BackupSpec struct {
 	// S3, Minio, Server, RestServer
 	BackupTo *BackupTo `json:"backupTo"`
 
-	// BackupTimeout
+	// backup timeout
 	// +optional
-	BackupTimeout metav1.Time `json:"backupTimeout"`
+	Timeout metav1.Duration `json:"timeout"`
 
 	// Environment variable passed to backup program.
 	// +optional
