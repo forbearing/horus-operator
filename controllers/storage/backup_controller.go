@@ -18,12 +18,13 @@ package storage
 
 import (
 	"context"
-	"errors"
+	"os"
 	"time"
 
 	storagev1alpha1 "github.com/forbearing/horus-operator/apis/storage/v1alpha1"
 	"github.com/forbearing/horus-operator/pkg/tools"
 	"github.com/go-logr/logr"
+	"github.com/sirupsen/logrus"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -31,11 +32,12 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 const (
 	defaultOperatorNamespace = "horus-operator"
+	defaultOperatorName      = "horus-operator"
+	defaultTimeout           = time.Minute * 10
 )
 
 // BackupReconciler reconciles a Backup object
@@ -59,29 +61,38 @@ type BackupReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.12.1/pkg/reconcile
 func (r *BackupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	logger := log.FromContext(ctx)
-	_ = logger
+	//logger := log.FromContext(ctx)
+	//_ = logger
 
-	//logger.Info("Backup Reconcile")
+	namespace := os.Getenv("NAMESPACE")
+	if len(namespace) == 0 {
+		namespace = defaultOperatorNamespace
+	}
+	logger := logrus.WithFields(logrus.Fields{
+		"Component": defaultOperatorName,
+	})
 
 	// 1.get a "Backup" resource
 	backupObj := &storagev1alpha1.Backup{}
 	err := r.Get(ctx, req.NamespacedName, backupObj)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
+			logger.Info("backup was deleted", backupObj.GetName())
 			return ctrl.Result{}, nil
 		}
 		logger.Info(backupObj.Name)
 		return ctrl.Result{}, err
 	}
 
-	if err := tools.BackupToNFS(ctx, defaultOperatorNamespace,
+	// Set the default tiemout for backup progress.
+	timeout := backupObj.Spec.Timeout.Duration
+	if timeout == time.Duration(0) {
+		timeout = defaultTimeout
+	}
+	backupCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	if err := tools.BackupToNFS(backupCtx, namespace,
 		backupObj, backupObj.Spec.BackupTo.NFS); err != nil {
-		// if errors is ErrResticInitFailed or ErrResticBackupFailed, we should
-		// finished this reconcile.
-		if errors.Is(err, tools.ErrResticInitFailed) || errors.Is(err, tools.ErrResticBackupFailed) {
-			return ctrl.Result{Requeue: false}, nil
-		}
 		return ctrl.Result{}, err
 	}
 	// =====
@@ -111,7 +122,7 @@ func (r *BackupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 func (r *BackupReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&storagev1alpha1.Backup{}).
-		Owns(&batchv1.CronJob{}).
+		//Owns(&batchv1.CronJob{}).
 		Complete(r)
 }
 

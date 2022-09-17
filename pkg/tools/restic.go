@@ -3,7 +3,6 @@ package tools
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -51,30 +50,40 @@ var (
 	createdTimeAnnotation   = "storage.hybfkuf.io/createdAt"
 	updatedTimeAnnotation   = "storage.hybfkuf.io/updatedAt"
 	restartedTimeAnnotation = "storage.hybfkuf.io/restartedAt"
-
-	ErrResticInitFailed   = errors.New("restic init failed")
-	ErrResticBackupFailed = errors.New("restic backup failed")
 )
+
+var (
+	ctx           = context.TODO()
+	podHandler    *pod.Handler
+	deployHandler *deployment.Handler
+	rsHandler     *replicaset.Handler
+	stsHandler    *statefulset.Handler
+	dsHandler     *daemonset.Handler
+	pvHandler     *persistentvolume.Handler
+	pvcHandler    *persistentvolumeclaim.Handler
+)
+
+func init() {
+	podHandler = pod.NewOrDie(ctx, "", "")
+	deployHandler = deployment.NewOrDie(ctx, "", "")
+	rsHandler = replicaset.NewOrDie(ctx, "", "")
+	stsHandler = statefulset.NewOrDie(ctx, "", "")
+	dsHandler = daemonset.NewOrDie(ctx, "", "")
+	pvHandler = persistentvolume.NewOrDie(ctx, "")
+	pvcHandler = persistentvolumeclaim.NewOrDie(ctx, "", "")
+}
 
 // podObj: 是要备份的 pv 所挂载到到 pod
 // nfs: 将数据备份到 NFS
 func BackupToNFS(ctx context.Context, operatorNamespace string,
 	backupObj *storagev1alpha1.Backup, nfs *storagev1alpha1.NFS) error {
 	var (
-		err           error
-		podHandler    *pod.Handler
-		deployHandler *deployment.Handler
-		rsHandler     *replicaset.Handler
-		stsHandler    *statefulset.Handler
-		dsHandler     *daemonset.Handler
-		pvHandler     *persistentvolume.Handler
-		pvcHandler    *persistentvolumeclaim.Handler
-
+		err        error
 		podObjList []*corev1.Pod
 		pvcList    []string
 
-		backupFrom         = backupObj.Spec.BackupFrom
-		backupObjNamespace = backupObj.GetNamespace()
+		backupFrom = backupObj.Spec.BackupFrom
+		namespace  = backupObj.GetNamespace()
 	)
 
 	beginTime := time.Now()
@@ -82,32 +91,16 @@ func BackupToNFS(ctx context.Context, operatorNamespace string,
 		"Component": "BackupToNFS",
 		"Storage":   "NFS",
 		"Resource":  backupFrom.Resource,
-		"Namespace": backupObjNamespace,
+		"Namespace": namespace,
 		"Name":      backupFrom.Name,
 	})
 
-	// === 准备处理器
-	if podHandler, err = pod.New(ctx, "", backupObjNamespace); err != nil {
-		return fmt.Errorf("Create pod handler error: %s", err.Error())
-	}
-	if deployHandler, err = deployment.New(ctx, "", backupObjNamespace); err != nil {
-		return fmt.Errorf("Create deployment handler error: %s", err.Error())
-	}
-	if rsHandler, err = replicaset.New(ctx, "", backupObjNamespace); err != nil {
-		return fmt.Errorf("Create replicaset handler error: %s", err.Error())
-	}
-	if stsHandler, err = statefulset.New(ctx, "", backupObjNamespace); err != nil {
-		return fmt.Errorf("Create statefulset handler error: %s", err.Error())
-	}
-	if dsHandler, err = daemonset.New(ctx, "", backupObjNamespace); err != nil {
-		return fmt.Errorf("Create daemonset handler error: %s", err.Error())
-	}
-	if pvHandler, err = persistentvolume.New(ctx, ""); err != nil {
-		return fmt.Errorf("Create persistentvolume handler error: %s", err.Error())
-	}
-	if pvcHandler, err = persistentvolumeclaim.New(ctx, "", backupObjNamespace); err != nil {
-		return fmt.Errorf("Create persistentvolumeclaim handler error: %s", err.Error())
-	}
+	podHandler.ResetNamespace(backupObj.GetNamespace())
+	deployHandler.ResetNamespace(backupObj.GetNamespace())
+	rsHandler.ResetNamespace(backupObj.GetNamespace())
+	stsHandler.ResetNamespace(backupObj.GetNamespace())
+	dsHandler.ResetNamespace(backupObj.GetNamespace())
+	pvcHandler.ResetNamespace(backupObj.GetNamespace())
 
 	switch backupFrom.Resource {
 	case storagev1alpha1.PodResource:
@@ -116,7 +109,7 @@ func BackupToNFS(ctx context.Context, operatorNamespace string,
 		if err != nil {
 			// if the Pod resource not found, skip backup
 			if apierrors.IsNotFound(err) {
-				logger.Warnf("pod/%s not found in namespace %s, skip backup", backupFrom.Name, backupObjNamespace)
+				logger.Warnf("pod/%s not found in namespace %s, skip backup", backupFrom.Name, namespace)
 				return nil
 			}
 			return fmt.Errorf("pod handler get pod error: %s", err.Error())
@@ -129,7 +122,7 @@ func BackupToNFS(ctx context.Context, operatorNamespace string,
 		logger.Infof("Start Backup deployment/%s", backupFrom.Name)
 		if podObjList, err = deployHandler.GetPods(backupFrom.Name); err != nil {
 			if apierrors.IsNotFound(err) {
-				logger.Warnf("deployment/%s not found in namespace %s, skip backup", backupFrom.Name, backupObjNamespace)
+				logger.Warnf("deployment/%s not found in namespace %s, skip backup", backupFrom.Name, namespace)
 				return nil
 			}
 			return fmt.Errorf("deployment handler get pod error: %s", err.Error())
@@ -141,7 +134,7 @@ func BackupToNFS(ctx context.Context, operatorNamespace string,
 		logger.Infof("Start Backup statefulset/%s", backupFrom.Name)
 		if podObjList, err = stsHandler.GetPods(backupFrom.Name); err != nil {
 			if apierrors.IsNotFound(err) {
-				logger.Warnf("statefulset/%s not found in namespace %s, skip backup", backupFrom.Name, backupObjNamespace)
+				logger.Warnf("statefulset/%s not found in namespace %s, skip backup", backupFrom.Name, namespace)
 				return nil
 			}
 			return fmt.Errorf("statefulset handler get pod error: %s", err.Error())
@@ -153,7 +146,7 @@ func BackupToNFS(ctx context.Context, operatorNamespace string,
 		logger.Infof("Start Backup daemonset/%s", backupFrom.Name)
 		if podObjList, err = dsHandler.GetPods(backupFrom.Name); err != nil {
 			if apierrors.IsNotFound(err) {
-				logger.Warnf("daemonset/%s not found in namespace %s, skip backup", backupFrom.Name, backupObjNamespace)
+				logger.Warnf("daemonset/%s not found in namespace %s, skip backup", backupFrom.Name, namespace)
 				return nil
 			}
 			return fmt.Errorf("daemonset handler get pod error: %s", err.Error())
@@ -227,8 +220,7 @@ func BackupToNFS(ctx context.Context, operatorNamespace string,
 		// deployment 配置 nodeName 和需要备份的 pod 在同一个 node 上.
 		var costedTime time.Duration
 		var pvdir string
-		if pvdir, costedTime, err = createFindpvdirDeployment(podHandler, deployHandler, rsHandler,
-			operatorNamespace, backupObj, nodeName, podUID); err != nil {
+		if pvdir, costedTime, err = createFindpvdirDeployment(operatorNamespace, backupObj, nodeName, podUID); err != nil {
 			return fmt.Errorf("create deployment/findpvdir-%s error: %s", meta.nodeName, err.Error())
 		}
 		logger.WithField("Cost", costedTime.String()).Infof("Found persistentvolume data directory path of pod/%s", podObj.GetName())
@@ -260,16 +252,14 @@ func BackupToNFS(ctx context.Context, operatorNamespace string,
 		// 对 deployment 的 pod 执行命令:
 		//   restic init 初始化 restic repository
 		//   restic backup 将 pv 数据备份到 NFS 存储
-		backuptonfsPod, costedTime, err := createBackuptonfsDeployment(
-			podHandler, deployHandler, rsHandler, operatorNamespace, backupObj, nfs, meta)
-		if err != nil {
+		var backuptonfsPod string
+		var costedTime time.Duration
+		if backuptonfsPod, costedTime, err = createBackuptonfsDeployment(operatorNamespace, backupObj, nfs, meta); err != nil {
 			return err
 		}
 		logger.WithField("Cost", costedTime.String()).Infof("Create deployment/%s", "backuptonfs"+"-"+meta.nodeName)
-
 		// === 4.通过 restic 备份工具在 backup-to-nfs 的 pod 上备份 pvc/pv 数据
-		if costedTime, err = backupByRestic(ctx, operatorNamespace, backupObj,
-			podHandler, backuptonfsPod, pvc, meta, HostBackupToNFS); err != nil {
+		if costedTime, err = backupByRestic(ctx, operatorNamespace, backuptonfsPod, backupObj, pvc, meta, HostBackupToNFS); err != nil {
 			return err
 		}
 		logger.WithField("Cost", costedTime.String()).Infof("Backup pvc/%s mounted by pod/%s", pvc, meta.podName)
@@ -281,8 +271,7 @@ func BackupToNFS(ctx context.Context, operatorNamespace string,
 }
 
 // createFindpvdirDeployment
-func createFindpvdirDeployment(podHandler *pod.Handler, deployHandler *deployment.Handler, rsHandler *replicaset.Handler,
-	operatorNamespace string, backupObj *storagev1alpha1.Backup, nodeName, podUID string) (string, time.Duration, error) {
+func createFindpvdirDeployment(operatorNamespace string, backupObj *storagev1alpha1.Backup, nodeName, podUID string) (string, time.Duration, error) {
 	var (
 		err             error
 		findpvdirName   = "findpvdir"
@@ -361,8 +350,7 @@ func createFindpvdirDeployment(podHandler *pod.Handler, deployHandler *deploymen
 }
 
 // createBackuptonfsDeployment
-func createBackuptonfsDeployment(podHandler *pod.Handler, deployHandler *deployment.Handler, rsHandler *replicaset.Handler,
-	operatorNamespace string, backupObj *storagev1alpha1.Backup, nfs *storagev1alpha1.NFS, meta pvdataMeta) (string, time.Duration, error) {
+func createBackuptonfsDeployment(operatorNamespace string, backupObj *storagev1alpha1.Backup, nfs *storagev1alpha1.NFS, meta pvdataMeta) (string, time.Duration, error) {
 	var (
 		err               error
 		backuptonfsName   = "backup-to-nfs"
@@ -428,10 +416,8 @@ func createBackuptonfsDeployment(podHandler *pod.Handler, deployHandler *deploym
 
 // ArgHost 作为 restic backup --host 的参数值
 // pvdir + pv 就是实际的 pv 数据的存放路径
-func backupByRestic(ctx context.Context,
-	operatorNamespace string, backupObj *storagev1alpha1.Backup,
-	podHandler *pod.Handler, execPod string,
-	pvc string, meta pvdataMeta, ArgHost string) (time.Duration, error) {
+func backupByRestic(ctx context.Context, operatorNamespace string, execPod string,
+	backupObj *storagev1alpha1.Backup, pvc string, meta pvdataMeta, ArgHost string) (time.Duration, error) {
 
 	beginTime := time.Now()
 	podHandler.ResetNamespace(operatorNamespace)
@@ -469,7 +455,7 @@ func backupByRestic(ctx context.Context,
 		logger.Debug(CmdInitRepo)
 		if err := podHandler.ExecuteWithStream(execPod, "", strings.Split(CmdInitRepo, " "),
 			createPassStdin(resticPasswd, 2), io.Discard, io.Discard); err != nil {
-			logger.Error(ErrResticInitFailed.Error())
+			logger.Error("restic init failed")
 			return time.Now().Sub(beginTime), nil
 		}
 	}
