@@ -291,14 +291,14 @@ func createFindpvdirDeployment(operatorNamespace string, backupObj *storagev1alp
 		"Component": findpvdirName,
 	})
 
+	deployName := findpvdirName + "-" + nodeName
 	findpvdirBytes := []byte(fmt.Sprintf(findpvdirDeploymentTemplate,
-		findpvdirName+"-"+nodeName, operatorNamespace,
+		deployName, operatorNamespace,
 		updatedTimeAnnotation, time.Now().Format(time.RFC3339),
 		nodeName, findpvdirImage, backupObj.Spec.TimeZone))
 	if findpvdirObj, err = depHandler.Apply(findpvdirBytes); err != nil {
 		return "", time.Now().Sub(beginTime), fmt.Errorf("deployment handler apply deployment/%s failed: %s", findpvdirName, err.Error())
 	}
-	deployName := findpvdirName + "-" + nodeName
 	logger.Debugf("waiting deployment/%s to be available and ready.", deployName)
 	if err := depHandler.WaitReady(deployName); err != nil {
 		logger.Errorf("createFindpvdirDeployment WaitReady error: %s", err.Error())
@@ -374,8 +374,9 @@ func createBackuptonfsDeployment(operatorNamespace string, backupObj *storagev1a
 	// pvpath 格式为: /var/lib/kubelet/pods + pod UID + volumes + pvc 类型
 	// 该路径下包含了一个或多个目录, 每个目录的名字就是 pv 的名字. 例如:
 	// /var/lib/kubelet/pods/787b3c5d-d11e-4d63-846f-6abd86683dbd/volumes/kubernetes.io~nfs/pvc-19ff22c4-e54f-4c13-8f1d-7a72e874ca08
+	deployName := backuptonfsName + "-" + meta.nodeName
 	backuptonfsBytes := []byte(fmt.Sprintf(backuptonfsDeploymentTemplate,
-		backuptonfsName+"-"+meta.nodeName, operatorNamespace,
+		deployName, operatorNamespace,
 		updatedTimeAnnotation, time.Now().Format(time.RFC3339),
 		meta.nodeName, backuptonfsImage, backupObj.Spec.TimeZone,
 		//pvdir, pvdir,
@@ -383,7 +384,6 @@ func createBackuptonfsDeployment(operatorNamespace string, backupObj *storagev1a
 	if backuptonfsObj, err = depHandler.Apply(backuptonfsBytes); err != nil {
 		return "", time.Now().Sub(beginTime), err
 	}
-	deployName := backuptonfsName + "-" + meta.nodeName
 	logger.Debugf("waiting deployment/%s to be available and ready.", deployName)
 	if err := depHandler.WaitReady(deployName); err != nil {
 		logger.Errorf("createBackuptonfsDeployment WaitReady error: %s", err.Error())
