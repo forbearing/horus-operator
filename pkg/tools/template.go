@@ -81,16 +81,16 @@ spec:
         - name: TZ
           value: %s
         volumeMounts:
-        - name: kubelet-home-dir
-          mountPath: /var/lib/kubelet
+        - name: host-root
+          mountPath: /host-root
           readOnly: true
         - name: restic-repo
           mountPath: "/restic-repo"
           readOnly: false
       volumes:
-      - name: kubelet-home-dir
+      - name: host-root
         hostPath:
-          path: /var/lib/kubelet
+          path: /
           type: Directory
       - name: restic-repo
         nfs:
