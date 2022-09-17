@@ -3,6 +3,7 @@ package tools
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -70,6 +71,10 @@ var (
 	pvcHandler = persistentvolumeclaim.NewOrDie(ctx, "", "")
 )
 
+var (
+	ResourceTypeError = errors.New("Backup.spec.backupFrom.resource field value must be pod, deployment, statefulset or daemonset")
+)
+
 // podObj: 是要备份的 pv 所挂载到到 pod
 // nfs: 将数据备份到 NFS
 func BackupToNFS(ctx context.Context, operatorNamespace string,
@@ -77,7 +82,6 @@ func BackupToNFS(ctx context.Context, operatorNamespace string,
 	var (
 		err        error
 		podObjList []*corev1.Pod
-
 		backupFrom = backupObj.Spec.BackupFrom
 		namespace  = backupObj.GetNamespace()
 	)
@@ -138,7 +142,7 @@ func BackupToNFS(ctx context.Context, operatorNamespace string,
 			return fmt.Errorf("daemonset handler get pod error: %s", err.Error())
 		}
 	default:
-		logger.Error("Not support backup object(must be pod|deployment|statefulset|daemonset)")
+		logger.Error(ResourceTypeError.Error())
 		return nil
 	}
 
@@ -148,13 +152,51 @@ func BackupToNFS(ctx context.Context, operatorNamespace string,
 	// pvc name 作为 key, pvdataMeta 作为 value
 	// 在这里只设置了 pv name
 	//
-	// nodeName, podName, podUID
-	// pvc -> pvname -> volumeSource
-	// pvdir
 	pvcpvMap := make(map[string]pvdataMeta)
-	// podObj 为备份对象(比如 Deployment, StatefulSet, DaemonSet, Pod) 的一个或多个 Pod
+	// podObjList contains all pods that managed/owned by the Deployment, StatefulSet or DaemonSet.
+	// we iterate over each pod to get its mounted persistentvolumeclaim(aka pvc),
+	// and the pvc as the map key, persistentvolume(aka pv) metadata as the value.
+	// pv metadata is a structured object that contains necessary info for
+	// deployment/findpvdir to find the pv data directory in the k8s node,
+	// and for deployment/backuptonfs to create a pod to backup the pv data to nfs server.
+	//
+	// The structured object for pv metadata is named pvdataMeta.
+	// pvdataMeta.volumeSource:
+	//   every persistentvolume(aka pv) has a backend valume, and the volme source
+	//   could be "csi", "nfs" or "hostPath"(further more see pv.spec). pvdataMeta.volumeSource
+	//   value contains the pv backend volume source type, such as csi, "nfs", "rbd" or "hostPath".
+	// pvdataMeta.nodeName:
+	//   nodeName indicates the k8s node name that the pod is running. the nodeName
+	//   is required by deployment/findpvdir to find the the persistentvolume data directory
+	//   path in the k8s node.
+	// pvdataMeta.podName:
+	//   The name of the deployment/statefulset/daemonset owned pod that we should to backup.
+	//   To backup persistentvolume data to nfs/minio/s3 reqests it.
+	// pvdataMeta.podUID
+	//   The UID name of the deployment/statefulset/daemonset owned pod that we should to backup.
+	//   To find the persistentvolume data directory path in k8s node requests it.
+	// pvdataMeta.pvdir
+	//   The persistentvolume data directory path in k8s node thtat found by deployment/findpvdir.
+	// pvdataMeta.pvname
+	//   The persistentvolume claimed by persistentvolumeclaim for podis mounts.
+	//   pod mounted pvc -> pvc claims pv -> k8s admin create pv manually or created by storageclass automatically.
+	//
+	// restic command to backup persistentvolume data to remote storage(nfs/minio/s3, etc.) should
+	// specific the backup source.
+	// The backup source is a file or directory path in k8s node, and the file or directory path
+	// usually join by pvdataMeta.pvdir  + pvdataMeta.podUID +  "volumes" + pvdataMeta.volumeSource +
+	// pvdataMeta.pvname.
+	//
+	// If the persistentvolumeclaim access modes is "ReadWriteMany", pvc may be mounted by
+	// many pods. we use a map named pvcpvMap to prevent backup persistentvolume data many times.
+	// for example:
+	//    pod-a -> pvc-a -> pv-a
+	//    pod-b -> pvc-a -> pv-a
+	//    pod-c -> pvc-a -> pv-a
+	// pod-a, pod-b and pod-c mounted the same pvc and use the same pv and use the same volume data.
+	// To iterate every pod managed/owned by deployment/statefulset/daemonset may get the same pvc.
 	for _, podObj := range podObjList {
-		// 1. 设置 pvcpvMap 对象: nodeName, podName, podUID
+		// 1. get nodeName, podUID
 		meta := pvdataMeta{}
 		var nodeName, podUID string
 		if nodeName, err = podHandler.GetNodeName(podObj); err != nil {
@@ -163,21 +205,21 @@ func BackupToNFS(ctx context.Context, operatorNamespace string,
 		if podUID, err = podHandler.GetUID(podObj); err != nil {
 			return err
 		}
-		// === 2. 设置 pvcpvMap 对象: pvname, volumeSource
-		// 获取 pod 所有的 pvc, 将 pvc 作为 key 依次遍历 pvcpvMap
-		// 一般在 pod 中获取到的 pvc 都会在 pvcpvMap 中存在
-		// pvcpvMap 是从 deployment/statefulset/daemonset 中获得的.
+
+		// 2. get pvname, set nodeName, podName, podUID, pvname
 		pvcList, err := podHandler.GetPVC(podObj)
 		if err != nil {
 			return fmt.Errorf("pod handler get persistentvolumeclaim faile: %s", err.Error())
 		}
 		logger.Debugf("The persistentvolumeclaims mounted by pod/%s are: %v", podObj.Name, pvcList)
 		for _, pvc := range pvcList {
+			// get the persistentvolume name claimed by persistentvolumeclaim resource.
 			pvname, err := pvcHandler.GetPV(pvc)
 			if err != nil {
 				logger.Errorf("persistentvolumeclaim get pv error: %s", err.Error())
 				continue
 			}
+			// get the persistentvolume backend volume type, such as "nfs", "csi", "hostPath", "local", etc.
 			volumeSource, err := pvHandler.GetVolumeSource(pvname)
 			if err != nil {
 				logger.Errorf("persistentvolume handler get volume source error: %s", err.Error())
@@ -190,15 +232,13 @@ func BackupToNFS(ctx context.Context, operatorNamespace string,
 			meta.pvname = pvname
 			pvcpvMap[pvc] = meta
 		}
-
-		// === 3.创建 deployment/findpvdir, 用来查找 pod 挂载的 pv 在节点上的路径.
-		// deployment 需要挂载 /var/lib/kubelet 目录
-		// deployment 需要和 operator 部署在同一个 namespace
-		// deployment 配置 nodeName 和需要备份的 pod 在同一个 node 上.
+		// 3. create deployment/findpvdir to find the persistentvolume data directory in k8s node that mounted by pod.
+		// the deployment should meet three condition:
+		//   1.deployment should mount the k8s node root direcotry(is "/", not "/root")
+		//   2.deployment usually deploy in the same namespace to operator
+		//   3.deployment.spec.template.spec.nodeName should same to the pod,
 		var costedTime time.Duration
 		var pvdir string
-		// 一个 pod 如果挂载了多个 pvc, 这多个 pvc 类型不能保证一项, 一些使用 ceph 存储,
-		// 一些使用 hostPath, 所以需要遍历每一个 pvc.
 		for _, pvc := range pvcList {
 			meta := pvcpvMap[pvc]
 			if pvdir, costedTime, err = createFindpvdirDeployment(operatorNamespace, backupObj, meta); err != nil {
@@ -224,7 +264,7 @@ func BackupToNFS(ctx context.Context, operatorNamespace string,
 		logger.Debugf("%v: %v", pvc, meta)
 	}
 
-	// 备份每一个 pvc
+	// 4. create deployment/backuptonfs to backup every pvc/data volume data.
 	for pvc, meta := range pvcpvMap {
 		// === 3.创建 deployment/backup-to-nfs
 		// deployment 挂载需要备份的 pod 的 pv
