@@ -61,24 +61,14 @@ const (
 
 var (
 	ctx        = context.TODO()
-	podHandler *pod.Handler
-	depHandler *deployment.Handler
-	rsHandler  *replicaset.Handler
-	stsHandler *statefulset.Handler
-	dsHandler  *daemonset.Handler
-	pvHandler  *persistentvolume.Handler
-	pvcHandler *persistentvolumeclaim.Handler
-)
-
-func init() {
 	podHandler = pod.NewOrDie(ctx, "", "")
 	depHandler = deployment.NewOrDie(ctx, "", "")
-	rsHandler = replicaset.NewOrDie(ctx, "", "")
+	rsHandler  = replicaset.NewOrDie(ctx, "", "")
 	stsHandler = statefulset.NewOrDie(ctx, "", "")
-	dsHandler = daemonset.NewOrDie(ctx, "", "")
-	pvHandler = persistentvolume.NewOrDie(ctx, "")
+	dsHandler  = daemonset.NewOrDie(ctx, "", "")
+	pvHandler  = persistentvolume.NewOrDie(ctx, "")
 	pvcHandler = persistentvolumeclaim.NewOrDie(ctx, "", "")
-}
+)
 
 // podObj: 是要备份的 pv 所挂载到到 pod
 // nfs: 将数据备份到 NFS
@@ -93,6 +83,12 @@ func BackupToNFS(ctx context.Context, operatorNamespace string,
 	)
 
 	beginTime := time.Now()
+	podHandler.ResetNamespace(backupObj.GetNamespace())
+	depHandler.ResetNamespace(backupObj.GetNamespace())
+	rsHandler.ResetNamespace(backupObj.GetNamespace())
+	stsHandler.ResetNamespace(backupObj.GetNamespace())
+	dsHandler.ResetNamespace(backupObj.GetNamespace())
+	pvcHandler.ResetNamespace(backupObj.GetNamespace())
 	logger := logrus.WithFields(logrus.Fields{
 		"Component": "BackupToNFS",
 		"Storage":   "NFS",
@@ -100,13 +96,6 @@ func BackupToNFS(ctx context.Context, operatorNamespace string,
 		"Namespace": namespace,
 		"Name":      backupFrom.Name,
 	})
-
-	podHandler.ResetNamespace(backupObj.GetNamespace())
-	depHandler.ResetNamespace(backupObj.GetNamespace())
-	rsHandler.ResetNamespace(backupObj.GetNamespace())
-	stsHandler.ResetNamespace(backupObj.GetNamespace())
-	dsHandler.ResetNamespace(backupObj.GetNamespace())
-	pvcHandler.ResetNamespace(backupObj.GetNamespace())
 
 	switch backupFrom.Resource {
 	case storagev1alpha1.PodResource:
