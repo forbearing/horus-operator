@@ -33,6 +33,10 @@ spec:
         env:
         - name: TZ
           value: %s
+        resources:
+          limits:
+            cpu: 0.1
+            memory: 50Mi
         volumeMounts:
         - name: kubelet-home-dir
           mountPath: /var/lib/kubelet

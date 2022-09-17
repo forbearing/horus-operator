@@ -231,15 +231,16 @@ func BackupToNFS(ctx context.Context, operatorNamespace string,
 			operatorNamespace, backupObj, nodeName, podUID); err != nil {
 			return fmt.Errorf("create deployment/findpvdir-%s error: %s", meta.nodeName, err.Error())
 		}
-		logger.WithField("Cost", costedTime.String()).Infof("Find persistentvolume data directory path of pod/%s", podObj.GetName())
+		logger.WithField("Cost", costedTime.String()).Infof("Found persistentvolume data directory path of pod/%s", podObj.GetName())
 		if len(pvdir) == 0 {
-			logger.Warn("Backup source is empty, skip backup")
+			logger.Warnf("Nothing found for pod/%s", podObj.GetName())
 			continue
 		}
+		logger.Debugf("The persistentvolume dir: %s", pvdir)
 		for _, pvc := range pvcList {
 			meta, exist := pvcpvMap[pvc]
 			if !exist {
-				logger.Warnf("the pvc/%s not found in pvcpvMap", pvc)
+				logger.Warnf("The pvc/%s not found in pvcpvMap", pvc)
 				continue
 			}
 			meta.pvdir = pvdir
@@ -308,8 +309,9 @@ func createFindpvdirDeployment(podHandler *pod.Handler, deployHandler *deploymen
 	if findpvdirObj, err = deployHandler.Apply(findpvdirBytes); err != nil {
 		return "", time.Now().Sub(beginTime), fmt.Errorf("deployment handler apply deployment/%s failed: %s", findpvdirName, err.Error())
 	}
-	logger.Debugf("Waiting deployment/%s to be available and ready.", findpvdirName)
-	if err := deployHandler.WaitReady(findpvdirName + "-" + nodeName); err != nil {
+	deployName := findpvdirName + "-" + nodeName
+	logger.Debugf("waiting deployment/%s to be available and ready.", deployName)
+	if err := deployHandler.WaitReady(deployName); err != nil {
 		logger.Errorf("createFindpvdirDeployment WaitReady error: %s", err.Error())
 	}
 
@@ -340,12 +342,13 @@ func createFindpvdirDeployment(podHandler *pod.Handler, deployHandler *deploymen
 	for i := range findpvdirPods {
 		findpvdirPod = findpvdirPods[i]
 		if findpvdirPod.Status.Phase == corev1.PodRunning {
-			logger.Debugf("Finding persistentvolume data directory path by execute command within pod/%s", findpvdirPod.Name)
+			logger.Debugf("finding persistentvolume data directory path by execute command within pod/%s", findpvdirPod.Name)
 			break
 		}
 	}
 
 	cmdFindpvdir := []string{"findpvdir", "--pod-uid", podUID, "--storage-type", "nfs"}
+	logger.Debugf("executing command %v to find persistentvolume data in node %s", cmdFindpvdir, nodeName)
 	//cmdFindpvdir := []string{"findpvdir", "--pod-uid", podUID, "--storage-type", "csi"}
 	// 在这个 pod 中执行命令, 来查找需要备份的 pod 的 pv 挂载在 k8s 节点上的路径.
 	// pvpath 用来存放命令行的输出, 这个输出中包含了需要备份的 pv 所在 k8s node 上的路径.
@@ -392,8 +395,9 @@ func createBackuptonfsDeployment(podHandler *pod.Handler, deployHandler *deploym
 	if backuptonfsObj, err = deployHandler.Apply(backuptonfsBytes); err != nil {
 		return "", time.Now().Sub(beginTime), err
 	}
-	logger.Debugf("Waiting deployment/%s to be available and ready.", backuptonfsName)
-	if err := deployHandler.WaitReady(backuptonfsName + "-" + meta.nodeName); err != nil {
+	deployName := backuptonfsName + "-" + meta.nodeName
+	logger.Debugf("waiting deployment/%s to be available and ready.", deployName)
+	if err := deployHandler.WaitReady(deployName); err != nil {
 		logger.Errorf("createBackuptonfsDeployment WaitReady error: %s", err.Error())
 	}
 
@@ -415,7 +419,6 @@ func createBackuptonfsDeployment(podHandler *pod.Handler, deployHandler *deploym
 	for i := range backuptonfsPods {
 		backuptonfsPod = backuptonfsPods[i]
 		if backuptonfsPod.Status.Phase == corev1.PodRunning {
-			logger.Debugf("Executing restic command to backup persistentvolume data within pod/%s", backuptonfsPod.Name)
 			break
 		}
 
@@ -424,23 +427,33 @@ func createBackuptonfsDeployment(podHandler *pod.Handler, deployHandler *deploym
 }
 
 // ArgHost 作为 restic backup --host 的参数值
-// pvpath + pv 就是实际的 pv 数据的存放路径
+// pvdir + pv 就是实际的 pv 数据的存放路径
 func backupByRestic(ctx context.Context,
 	operatorNamespace string, backupObj *storagev1alpha1.Backup,
 	podHandler *pod.Handler, execPod string,
 	pvc string, meta pvdataMeta, ArgHost string) (time.Duration, error) {
 
 	beginTime := time.Now()
-
 	podHandler.ResetNamespace(operatorNamespace)
 	logger := logrus.WithFields(logrus.Fields{
 		"Component": "restic",
 	})
+
+	if len(meta.pvdir) == 0 {
+		logger.Debug("persistentvolume directory is empty, skip backup")
+		return time.Now().Sub(beginTime), nil
+	}
+	if len(meta.pvname) == 0 {
+		logger.Debug("persistentvolume name is empty, skip backup")
+		return time.Now().Sub(beginTime), nil
+	}
 	clusterName := backupObj.Spec.Cluster
 	if len(clusterName) == 0 {
 		clusterName = defaultClusterName
 	}
-	//res := restic.NewIgnoreNotFound(ctx, &restic.GlobalFlags{NoCache: true, Repo: resticRepo, Verbose: 3})
+	pvpath := filepath.Join(meta.pvdir, meta.pvname)
+	logger.Debugf("the path of persistentvolume data in k8s node: %s", pvpath)
+	logger.Debugf("executing restic command to backup persistentvolume data within pod/%s", execPod)
 	res := restic.NewIgnoreNotFound(ctx, &restic.GlobalFlags{NoCache: true, Repo: resticRepo})
 	tags := []string{string(backupObj.Spec.BackupFrom.Resource), clusterName, backupObj.Namespace, backupObj.Spec.BackupFrom.Name, pvc}
 	CmdCheckRepo := res.Command(restic.List{}.SetArgs("keys")).String()
@@ -464,7 +477,7 @@ func backupByRestic(ctx context.Context,
 	logger.Debug(CmdBackup)
 	if err := podHandler.WithNamespace(operatorNamespace).ExecuteWithStream(execPod, "", strings.Split(CmdBackup, " "),
 		createPassStdin(resticPasswd), io.Discard, io.Discard); err != nil {
-		logger.Errorf("Restic backup pvc/%s failed, maybe the directory/file of %s do not exist in k8s node", pvc, filepath.Join(meta.pvdir, meta.pvname))
+		logger.Errorf("restic backup pvc/%s failed, maybe the directory/file of %s do not exist in k8s node", pvc, filepath.Join(meta.pvdir, meta.pvname))
 	}
 
 	return time.Now().Sub(beginTime), nil
