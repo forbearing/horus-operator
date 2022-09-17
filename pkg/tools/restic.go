@@ -309,7 +309,7 @@ func createFindpvdirDeployment(operatorNamespace string, backupObj *storagev1alp
 	// 其管理的 ReplicaSet, 但是如果传入的是 deployment 的名字, GetRS() 需额外
 	// 通过 Get API Server 接口找到 Deployment 对象. 具体请看 GetRS() 的源码.
 	if findpvdirRsList, err = deployHandler.GetRS(findpvdirObj); err != nil {
-		return "", time.Now().Sub(beginTime), fmt.Errorf("deployment handler get replicaset failed: %s", err.Error())
+		return "", time.Now().Sub(beginTime), fmt.Errorf("deployment handler get replicasets failed: %s", err.Error())
 	}
 	// 只有 ReplicaSet 的 replicas 的值不为 nil 且大于0, 则表明该 ReplicaSet
 	// 就是当前 Deployment 正在使用的 ReplicaSet.
@@ -322,7 +322,7 @@ func createFindpvdirDeployment(operatorNamespace string, backupObj *storagev1alp
 			// 我们已经找到了我们需要的 replicaset, 直接用过 replicaset.Handler
 			// 来找到该 replicaset 下管理的所有 Pod 即可
 			if findpvdirPods, err = rsHandler.GetPods(findpvdirRS); err != nil {
-				return "", time.Now().Sub(beginTime), fmt.Errorf("replicaset controller get pods failed: %s", err.Error())
+				return "", time.Now().Sub(beginTime), fmt.Errorf("replicaset handler get pods failed: %s", err.Error())
 			}
 			break
 		}
@@ -392,13 +392,13 @@ func createBackuptonfsDeployment(operatorNamespace string, backupObj *storagev1a
 	// 先找到 backuptonfs 这个 Deployment 下所有管理的 ReplicaSet
 	// 使用 backuptonfsObj 而不是 backuptonfsName, 因为前者比后者少一个 List API 请求
 	if backuptonfsRsList, err = deployHandler.GetRS(backuptonfsObj); err != nil {
-		return "", time.Now().Sub(beginTime), err
+		return "", time.Now().Sub(beginTime), fmt.Errorf("deployment handler get replicasets error: %s", err.Error())
 	}
 	for i := range backuptonfsRsList {
 		backuptonfsRS = backuptonfsRsList[i]
 		if backuptonfsRS.Spec.Replicas != nil && *backuptonfsRS.Spec.Replicas > 0 {
 			if backuptonfsPods, err = rsHandler.GetPods(backuptonfsRS); err != nil {
-				return "", time.Now().Sub(beginTime), err
+				return "", time.Now().Sub(beginTime), fmt.Errorf("replicaset handler get pods error: %s", err.Error())
 			}
 			break
 		}
