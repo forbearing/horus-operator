@@ -258,7 +258,7 @@ func BackupToNFS(ctx context.Context, operatorNamespace string,
 	}
 
 	logger.WithField("Cost", time.Now().Sub(beginTime).String()).
-		Infof("Successfully Backup The PV/PVC Mounted by %s/%s to NFS Server", backupFrom.Resource, backupFrom.Name)
+		Infof("Successfully Backup The PVC Mounted by %s/%s to NFS Server", backupFrom.Resource, backupFrom.Name)
 	return nil
 }
 
