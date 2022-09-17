@@ -43,7 +43,7 @@ const (
 	mountHostRootPath  = "/host-root"
 
 	HostBackupToNFS   = "backup-to-nfs"
-	HostBackupToS3    = "backup-to-S3"
+	HostBackupToS3    = "backup-to-s3"
 	HostBackupToMinio = "backup-to-minio"
 )
 
