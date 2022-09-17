@@ -45,12 +45,18 @@ const (
 	HostBackupToNFS   = "backup-to-nfs"
 	HostBackupToS3    = "backup-to-s3"
 	HostBackupToMinio = "backup-to-minio"
-)
 
-var (
+	findpvdirName    = "findpvdir"
+	findpvdirImage   = "hybfkuf/findpvdir:latest"
+	backuptonfsName  = "backup-to-nfs"
+	backuptonfsImage = "hybfkuf/backup-tools-restic:latest"
+
 	createdTimeAnnotation   = "storage.hybfkuf.io/createdAt"
 	updatedTimeAnnotation   = "storage.hybfkuf.io/updatedAt"
 	restartedTimeAnnotation = "storage.hybfkuf.io/restartedAt"
+
+	volumeHostPath = "hostPath"
+	volumeLocal    = "local"
 )
 
 var (
@@ -168,10 +174,6 @@ func BackupToNFS(ctx context.Context, operatorNamespace string,
 		if podUID, err = podHandler.GetUID(podObj); err != nil {
 			return err
 		}
-		meta.nodeName = nodeName
-		meta.podName = podObj.GetName()
-		meta.podUID = podUID
-
 		// === 2. 设置 pvcpvMap 对象: pvname, volumeSource
 		// 获取 pod 所有的 pvc, 将 pvc 作为 key 依次遍历 pvcpvMap
 		// 一般在 pod 中获取到的 pvc 都会在 pvcpvMap 中存在
@@ -192,8 +194,11 @@ func BackupToNFS(ctx context.Context, operatorNamespace string,
 				logger.Errorf("persistentvolume handler get volume source error: %s", err.Error())
 				continue
 			}
-			meta.pvname = pvname
 			meta.volumeSource = volumeSource
+			meta.nodeName = nodeName
+			meta.podName = podObj.GetName()
+			meta.podUID = podUID
+			meta.pvname = pvname
 			pvcpvMap[pvc] = meta
 		}
 
@@ -207,8 +212,8 @@ func BackupToNFS(ctx context.Context, operatorNamespace string,
 		// 一些使用 hostPath, 所以需要遍历每一个 pvc.
 		for _, pvc := range pvcList {
 			meta := pvcpvMap[pvc]
-			if pvdir, costedTime, err = createFindpvdirDeployment(operatorNamespace, backupObj, pvcpvMap[pvc]); err != nil {
-				return fmt.Errorf("create deployment/findpvdir-%s error: %s", pvcpvMap[pvc].nodeName, err.Error())
+			if pvdir, costedTime, err = createFindpvdirDeployment(operatorNamespace, backupObj, meta); err != nil {
+				return fmt.Errorf("create deployment/%s error: %s", findpvdirName+"-"+meta.nodeName, err.Error())
 			}
 			logger.WithField("Cost", costedTime.String()).Infof("Found pvc/%s data directory path of pod/%s", pvc, podObj.GetName())
 			if len(pvdir) == 0 {
@@ -216,12 +221,6 @@ func BackupToNFS(ctx context.Context, operatorNamespace string,
 				continue
 			}
 			logger.Debugf("The persistentvolume dir: %s", pvdir)
-			var exist bool
-			meta, exist = pvcpvMap[pvc]
-			if !exist {
-				logger.Warnf("The pvc/%s not found in pvcpvMap", pvc)
-				continue
-			}
 			meta.pvdir = pvdir
 			pvcpvMap[pvc] = meta
 		}
@@ -266,8 +265,6 @@ func BackupToNFS(ctx context.Context, operatorNamespace string,
 func createFindpvdirDeployment(operatorNamespace string, backupObj *storagev1alpha1.Backup, meta pvdataMeta) (string, time.Duration, error) {
 	var (
 		err             error
-		findpvdirName   = "findpvdir"
-		findpvdirImage  = "hybfkuf/findpvdir:latest"
 		findpvdirObj    = &appsv1.Deployment{}
 		findpvdirRsList = []*appsv1.ReplicaSet{}
 		findpvdirRS     = &appsv1.ReplicaSet{}
@@ -329,14 +326,23 @@ func createFindpvdirDeployment(operatorNamespace string, backupObj *storagev1alp
 	}
 
 	cmdFindpvdir := []string{"findpvdir", "--pod-uid", meta.podUID, "--storage-type", meta.volumeSource}
+	// if persistentvolume volume source is hostPath or local, the returned value
+	// is pvpath not pvdir, and pvpath = pvdir + pvname.
+	// And it's no need to find the persistentvolume data directory path now, just return
+	// the "hostPath" or "local" in k8s node path.
 	switch meta.volumeSource {
-	case "hostPath":
-		// if persistentvolume volume source, we return value is pvpath(pvpath = pvdir + pvname), not pvdir
+	case volumeHostPath:
 		pvObj, err := pvHandler.Get(meta.pvname)
 		if err != nil {
-			fmt.Errorf("persistentvolume handler get persistentvolume error: %s", err.Error())
+			return "", time.Now().Sub(beginTime), fmt.Errorf("persistentvolume handler get persistentvolume error: %s", err.Error())
 		}
 		return pvObj.Spec.HostPath.Path, time.Now().Sub(beginTime), nil
+	case volumeLocal:
+		pvObj, err := pvHandler.Get(meta.pvname)
+		if err != nil {
+			return "", time.Now().Sub(beginTime), fmt.Errorf("persistentvolume handler get persistentvolume error: %s", err.Error())
+		}
+		return pvObj.Spec.Local.Path, time.Now().Sub(beginTime), nil
 	}
 	logger.Debugf("executing command %v to find persistentvolume data in node %s", cmdFindpvdir, meta.nodeName)
 	//cmdFindpvdir := []string{"findpvdir", "--pod-uid", podUID, "--storage-type", "csi"}
@@ -354,8 +360,6 @@ func createFindpvdirDeployment(operatorNamespace string, backupObj *storagev1alp
 func createBackuptonfsDeployment(operatorNamespace string, backupObj *storagev1alpha1.Backup, nfs *storagev1alpha1.NFS, meta pvdataMeta) (string, time.Duration, error) {
 	var (
 		err               error
-		backuptonfsName   = "backup-to-nfs"
-		backuptonfsImage  = "hybfkuf/backup-tools-restic:latest"
 		backuptonfsObj    = &appsv1.Deployment{}
 		backuptonfsRsList = []*appsv1.ReplicaSet{}
 		backuptonfsRS     = &appsv1.ReplicaSet{}
@@ -439,10 +443,12 @@ func backupByRestic(ctx context.Context, operatorNamespace string, execPod strin
 	if len(clusterName) == 0 {
 		clusterName = defaultClusterName
 	}
+
 	pvpath := filepath.Join(mountHostRootPath, meta.pvdir, meta.pvname)
 	switch meta.volumeSource {
-	case "hostPath":
-		// if persistentvolume volume source is hostPath, the pvdir is pvpath
+	// if persistentvolume volume source is "hostPath" or "local", it's mean that
+	// the meta.pvdir is pvpath not pvdir, and pvpath = pvdir + pvname.
+	case volumeHostPath, volumeLocal:
 		pvpath = filepath.Join(mountHostRootPath, meta.pvdir)
 	}
 	logger.Debugf("the path of persistentvolume data in k8s node: %s", pvpath)
