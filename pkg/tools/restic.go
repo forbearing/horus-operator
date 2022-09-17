@@ -53,19 +53,19 @@ var (
 )
 
 var (
-	ctx           = context.TODO()
-	podHandler    *pod.Handler
-	deployHandler *deployment.Handler
-	rsHandler     *replicaset.Handler
-	stsHandler    *statefulset.Handler
-	dsHandler     *daemonset.Handler
-	pvHandler     *persistentvolume.Handler
-	pvcHandler    *persistentvolumeclaim.Handler
+	ctx        = context.TODO()
+	podHandler *pod.Handler
+	depHandler *deployment.Handler
+	rsHandler  *replicaset.Handler
+	stsHandler *statefulset.Handler
+	dsHandler  *daemonset.Handler
+	pvHandler  *persistentvolume.Handler
+	pvcHandler *persistentvolumeclaim.Handler
 )
 
 func init() {
 	podHandler = pod.NewOrDie(ctx, "", "")
-	deployHandler = deployment.NewOrDie(ctx, "", "")
+	depHandler = deployment.NewOrDie(ctx, "", "")
 	rsHandler = replicaset.NewOrDie(ctx, "", "")
 	stsHandler = statefulset.NewOrDie(ctx, "", "")
 	dsHandler = daemonset.NewOrDie(ctx, "", "")
@@ -96,7 +96,7 @@ func BackupToNFS(ctx context.Context, operatorNamespace string,
 	})
 
 	podHandler.ResetNamespace(backupObj.GetNamespace())
-	deployHandler.ResetNamespace(backupObj.GetNamespace())
+	depHandler.ResetNamespace(backupObj.GetNamespace())
 	rsHandler.ResetNamespace(backupObj.GetNamespace())
 	stsHandler.ResetNamespace(backupObj.GetNamespace())
 	dsHandler.ResetNamespace(backupObj.GetNamespace())
@@ -120,14 +120,14 @@ func BackupToNFS(ctx context.Context, operatorNamespace string,
 		}
 	case storagev1alpha1.DeploymentResource:
 		logger.Infof("Start Backup deployment/%s", backupFrom.Name)
-		if podObjList, err = deployHandler.GetPods(backupFrom.Name); err != nil {
+		if podObjList, err = depHandler.GetPods(backupFrom.Name); err != nil {
 			if apierrors.IsNotFound(err) {
 				logger.Warnf("deployment/%s not found in namespace %s, skip backup", backupFrom.Name, namespace)
 				return nil
 			}
 			return fmt.Errorf("deployment handler get pod error: %s", err.Error())
 		}
-		if pvcList, err = deployHandler.GetPVC(backupFrom.Name); err != nil {
+		if pvcList, err = depHandler.GetPVC(backupFrom.Name); err != nil {
 			return fmt.Errorf("deployment handler get persistentvolumeclaim error: %s", err.Error())
 		}
 	case storagev1alpha1.StatefulSetResource:
@@ -285,7 +285,7 @@ func createFindpvdirDeployment(operatorNamespace string, backupObj *storagev1alp
 	beginTime := time.Now()
 
 	podHandler.ResetNamespace(operatorNamespace)
-	deployHandler.ResetNamespace(operatorNamespace)
+	depHandler.ResetNamespace(operatorNamespace)
 	rsHandler.ResetNamespace(operatorNamespace)
 	logger := logrus.WithFields(logrus.Fields{
 		"Component": findpvdirName,
@@ -295,12 +295,12 @@ func createFindpvdirDeployment(operatorNamespace string, backupObj *storagev1alp
 		findpvdirName+"-"+nodeName, operatorNamespace,
 		updatedTimeAnnotation, time.Now().Format(time.RFC3339),
 		nodeName, findpvdirImage, backupObj.Spec.TimeZone))
-	if findpvdirObj, err = deployHandler.Apply(findpvdirBytes); err != nil {
+	if findpvdirObj, err = depHandler.Apply(findpvdirBytes); err != nil {
 		return "", time.Now().Sub(beginTime), fmt.Errorf("deployment handler apply deployment/%s failed: %s", findpvdirName, err.Error())
 	}
 	deployName := findpvdirName + "-" + nodeName
 	logger.Debugf("waiting deployment/%s to be available and ready.", deployName)
-	if err := deployHandler.WaitReady(deployName); err != nil {
+	if err := depHandler.WaitReady(deployName); err != nil {
 		logger.Errorf("createFindpvdirDeployment WaitReady error: %s", err.Error())
 	}
 
@@ -308,7 +308,7 @@ func createFindpvdirDeployment(operatorNamespace string, backupObj *storagev1alp
 	// 虽然 GetRS() 可以通过一个 deployment 名字或者 deployment 对象来找到
 	// 其管理的 ReplicaSet, 但是如果传入的是 deployment 的名字, GetRS() 需额外
 	// 通过 Get API Server 接口找到 Deployment 对象. 具体请看 GetRS() 的源码.
-	if findpvdirRsList, err = deployHandler.GetRS(findpvdirObj); err != nil {
+	if findpvdirRsList, err = depHandler.GetRS(findpvdirObj); err != nil {
 		return "", time.Now().Sub(beginTime), fmt.Errorf("deployment handler get replicasets failed: %s", err.Error())
 	}
 	// 只有 ReplicaSet 的 replicas 的值不为 nil 且大于0, 则表明该 ReplicaSet
@@ -364,7 +364,7 @@ func createBackuptonfsDeployment(operatorNamespace string, backupObj *storagev1a
 	beginTime := time.Now()
 
 	podHandler.ResetNamespace(operatorNamespace)
-	deployHandler.ResetNamespace(operatorNamespace)
+	depHandler.ResetNamespace(operatorNamespace)
 	rsHandler.ResetNamespace(operatorNamespace)
 	logger := logrus.WithFields(logrus.Fields{
 		"Component": "backup",
@@ -380,18 +380,18 @@ func createBackuptonfsDeployment(operatorNamespace string, backupObj *storagev1a
 		meta.nodeName, backuptonfsImage, backupObj.Spec.TimeZone,
 		//pvdir, pvdir,
 		nfs.Server, nfs.Path))
-	if backuptonfsObj, err = deployHandler.Apply(backuptonfsBytes); err != nil {
+	if backuptonfsObj, err = depHandler.Apply(backuptonfsBytes); err != nil {
 		return "", time.Now().Sub(beginTime), err
 	}
 	deployName := backuptonfsName + "-" + meta.nodeName
 	logger.Debugf("waiting deployment/%s to be available and ready.", deployName)
-	if err := deployHandler.WaitReady(deployName); err != nil {
+	if err := depHandler.WaitReady(deployName); err != nil {
 		logger.Errorf("createBackuptonfsDeployment WaitReady error: %s", err.Error())
 	}
 
 	// 先找到 backuptonfs 这个 Deployment 下所有管理的 ReplicaSet
 	// 使用 backuptonfsObj 而不是 backuptonfsName, 因为前者比后者少一个 List API 请求
-	if backuptonfsRsList, err = deployHandler.GetRS(backuptonfsObj); err != nil {
+	if backuptonfsRsList, err = depHandler.GetRS(backuptonfsObj); err != nil {
 		return "", time.Now().Sub(beginTime), fmt.Errorf("deployment handler get replicasets error: %s", err.Error())
 	}
 	for i := range backuptonfsRsList {
