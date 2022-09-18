@@ -75,8 +75,7 @@ var (
 	ResourceTypeError = errors.New("Backup.spec.backupFrom.resource field value must be pod, deployment, statefulset or daemonset")
 )
 
-// podObj: 是要备份的 pv 所挂载到到 pod
-// nfs: 将数据备份到 NFS
+// BackupToNFS backup the k8s resource defined in Backup object  to nfs storage.
 func BackupToNFS(ctx context.Context, operatorNamespace string,
 	backupObj *storagev1alpha1.Backup, nfs *storagev1alpha1.NFS) error {
 	var (
@@ -206,7 +205,7 @@ func BackupToNFS(ctx context.Context, operatorNamespace string,
 			return err
 		}
 
-		// 2. get pvname, set nodeName, podName, podUID, pvname
+		// 2. get volumeSource, pvname, set volumeSource, nodeName, podName, podUID, pvname
 		pvcList, err := podHandler.GetPVC(podObj)
 		if err != nil {
 			return fmt.Errorf("pod handler get persistentvolumeclaim faile: %s", err.Error())
@@ -254,7 +253,8 @@ func BackupToNFS(ctx context.Context, operatorNamespace string,
 			pvcpvMap[pvc] = meta
 		}
 	}
-	// if there is no persistentvolumeclaim mounted by the backup target resource, skip backup
+	// If the length of pvcpvMap is zero, it's means that no persistentvolumeclaim mounted
+	// by the backup target resource, skip backup.
 	if len(pvcpvMap) == 0 {
 		logger.Warnf("There is no pvc mounted by the %s/%s, skip backup", backupFrom.Resource, backupFrom.Name)
 		return nil
@@ -265,20 +265,22 @@ func BackupToNFS(ctx context.Context, operatorNamespace string,
 	}
 
 	// 4. create deployment/backuptonfs to backup every pvc/data volume data.
+	// there are three condition should meet.
+	//   1.deployment mount the persistentvolumeclaim we should backup
+	//   2.deployment mount nfs storage as persistentvolumeclaim
+	//   3.execute restic commmand to backup persistentvolumeclaim data
+	//     - "restic list keys" check whether resitc repository exist
+	//     - "restic init" initial a resitc repository when repository not exist.
+	//     - "restic backup" backup the persistentvolume data to nfs storage.
 	for pvc, meta := range pvcpvMap {
-		// === 3.创建 deployment/backup-to-nfs
-		// deployment 挂载需要备份的 pod 的 pv
-		// deployment 挂载 NFS 存储
-		// 对 deployment 的 pod 执行命令:
-		//   restic init 初始化 restic repository
-		//   restic backup 将 pv 数据备份到 NFS 存储
+		// create the deployment/backuptonfs
 		var backuptonfsPod string
 		var costedTime time.Duration
 		if backuptonfsPod, costedTime, err = createBackuptonfsDeployment(operatorNamespace, backupObj, nfs, meta); err != nil {
 			return err
 		}
 		logger.WithField("Cost", costedTime.String()).Infof("Create deployment/%s", "backuptonfs"+"-"+meta.nodeName)
-		// === 4.通过 restic 备份工具在 backup-to-nfs 的 pod 上备份 pvc/pv 数据
+		// execute restic commmand whith pod owned by deployment/backuptonfs to backup persistentvolume data.
 		if costedTime, err = backupByRestic(ctx, operatorNamespace, backuptonfsPod, backupObj, pvc, meta, HostBackupToNFS); err != nil {
 			return err
 		}
