@@ -75,7 +75,7 @@ var (
 	ResourceTypeError = errors.New("Backup.spec.backupFrom.resource field value must be pod, deployment, statefulset or daemonset")
 )
 
-// BackupToNFS backup the k8s resource defined in Backup object  to nfs storage.
+// BackupToNFS backup the k8s resource defined in Backup object to nfs storage.
 func BackupToNFS(ctx context.Context, operatorNamespace string,
 	backupObj *storagev1alpha1.Backup, nfs *storagev1alpha1.NFS) error {
 	var (
@@ -449,6 +449,9 @@ func createBackuptonfsDeployment(operatorNamespace string, backupObj *storagev1a
 	}
 	return backuptonfsPod.Name, time.Now().Sub(beginTime), nil
 }
+
+// createBackuptominioDepoyment
+//func createBackuptominioDepoyment(operatorNamespace string, backupObj *storagev1alpha1.Backup, minio *storagev1alpha1)
 
 // ArgHost 作为 restic backup --host 的参数值
 // pvdir + pv 就是实际的 pv 数据的存放路径
