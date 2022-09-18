@@ -450,7 +450,7 @@ func createBackuptonfsDeployment(operatorNamespace string, backupObj *storagev1a
 	return backuptonfsPod.Name, time.Now().Sub(beginTime), nil
 }
 
-// createBackuptominioDepoyment
+// createBackuptominioDepoyment backup persistentvolume data to minio object storage
 //func createBackuptominioDepoyment(operatorNamespace string, backupObj *storagev1alpha1.Backup, minio *storagev1alpha1)
 
 // ArgHost 作为 restic backup --host 的参数值
