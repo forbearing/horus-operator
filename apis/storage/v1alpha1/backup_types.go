@@ -144,6 +144,21 @@ type S3 struct {
 	Region                string `json:"region"`
 }
 
+type MinIO struct {
+	Endpoint string `json:"endpoint"`
+	Bucket   string `json:"bucket"`
+	// +optional
+	Folder string `json:"folder"`
+	// secret.data should contain two field: accessKey, secretKey
+	CredentialName string `json:"credentialName"`
+	// +optional
+	CredentialNamespace string `json:"credentialNamespace"`
+	// +optional
+	InsecureTLSSkipVerify bool `json:"insecureTLSSkipVerify"`
+	// + optional
+	Region string `json:"region"`
+}
+
 type RestServer struct {
 	Address string `json:"address"`
 	Port    int32  `json:"port"`
