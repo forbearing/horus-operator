@@ -2,10 +2,15 @@ package tools
 
 import (
 	"bytes"
+	"fmt"
+	"reflect"
+	"strings"
 	"time"
 
+	storagev1alpha1 "github.com/forbearing/horus-operator/apis/storage/v1alpha1"
 	"github.com/forbearing/k8s/deployment"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 )
 
 // createPassStdin 创建一个 *bytes.Buffer 对象, 该对象包含了 restic 密码
@@ -42,4 +47,71 @@ func getOrApplyDeployment(handler *deployment.Handler, data []byte) (*appsv1.Dep
 		return deploy, nil
 	}
 	return handler.Apply(data)
+}
+
+// createAndgetRunningPod creates the deployment and get its any running status pod.
+// The namespace determine which namespace the deployment object deploy to.
+func createAndGetRunningPod(namespace string, deployData interface{}) (*corev1.Pod, error) {
+	depHandler.ResetNamespace(namespace)
+	rsHandler.ResetNamespace(namespace)
+	podHandler.ResetNamespace(namespace)
+
+	// 1.apply deployment
+	deployObj, err := depHandler.Apply(deployData)
+	if err != nil {
+		return nil, fmt.Errorf("deployment handler Apply error: %s", err.Error())
+	}
+
+	// 2.block here and wait the deployment to be available and ready.
+	if err := depHandler.WaitReady(deployObj.GetName()); err != nil {
+		return nil, fmt.Errorf("deployment handler WaitReady %s error: %s", deployObj.GetName(), err.Error())
+	}
+
+	// 3.get all replicasets object owned by the deployment.
+	rsObjList, err := depHandler.GetRS(deployObj)
+	if err != nil {
+		return nil, fmt.Errorf("replicaset handler get %s all replicasets error: %s", deployObj.GetName(), err.Error())
+	}
+
+	var podsObj []*corev1.Pod
+	for i := range rsObjList {
+		// 4.find the current working replicaset.
+		// the replicaset that .spec.replicas not equal nil and greater than zero always
+		// is the working replicaset.
+		rsObj := rsObjList[i]
+		if rsObj.Spec.Replicas != nil && *rsObj.Spec.Replicas > 0 {
+			// 5.get all pods object owned by the replicaset.
+			if podsObj, err = rsHandler.GetPods(rsObj); err != nil {
+				return nil, fmt.Errorf("pod handler get %s all pods error: %s", rsObj.GetName(), err.Error())
+			}
+			break
+		}
+	}
+
+	// 6.if any pods object is running status, return one of them.
+	var podObj *corev1.Pod
+	for i := range podsObj {
+		podObj = podsObj[i]
+		if podObj.Status.Phase == corev1.PodRunning {
+			break
+		}
+	}
+
+	return podObj, nil
+}
+
+// parseBackupTo parse the backup.spec.backupTo field to know where we should backup to
+func parseBackupTo(backupObj *storagev1alpha1.Backup) []string {
+	t := reflect.TypeOf(backupObj.Spec.BackupTo).Elem()
+	v := reflect.ValueOf(backupObj.Spec.BackupTo).Elem()
+
+	var backupTo []string
+	for i := 0; i < v.NumField(); i++ {
+		val := v.Field(i).Interface()
+		if !reflect.ValueOf(val).IsNil() {
+			tag := t.Field(i).Tag.Get("json")
+			backupTo = append(backupTo, strings.Split(tag, ",")[0])
+		}
+	}
+	return backupTo
 }

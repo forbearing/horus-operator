@@ -8,24 +8,47 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
 	storagev1alpha1 "github.com/forbearing/horus-operator/apis/storage/v1alpha1"
+	"github.com/forbearing/horus-operator/pkg/minio"
 	"github.com/forbearing/k8s/daemonset"
 	"github.com/forbearing/k8s/deployment"
 	"github.com/forbearing/k8s/persistentvolume"
 	"github.com/forbearing/k8s/persistentvolumeclaim"
 	"github.com/forbearing/k8s/pod"
 	"github.com/forbearing/k8s/replicaset"
+	"github.com/forbearing/k8s/secret"
 	"github.com/forbearing/k8s/statefulset"
 	"github.com/forbearing/restic"
 	"github.com/sirupsen/logrus"
-	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
+// The structured object for pv metadata is named pvdataMeta.
+// pvdataMeta.volumeSource:
+//   every persistentvolume(aka pv) has a backend valume, and the volme source
+//   could be "csi", "nfs" or "hostPath"(further more see pv.spec). pvdataMeta.volumeSource
+//   value contains the pv backend volume source type, such as csi, "nfs", "rbd" or "hostPath".
+// pvdataMeta.nodeName:
+//   nodeName indicates the k8s node name that the pod is running. the nodeName
+//   is required by deployment/findpvdir to find the the persistentvolume data directory
+//   path in the k8s node.
+// pvdataMeta.podName:
+//   The name of the deployment/statefulset/daemonset owned pod that we should to backup.
+//   To backup persistentvolume data to nfs/minio/s3 reqests it.
+// pvdataMeta.podUID
+//   The UID name of the deployment/statefulset/daemonset owned pod that we should to backup.
+//   To find the persistentvolume data directory path in k8s node requests it.
+// pvdataMeta.pvdir
+//   The persistentvolume data directory path in k8s node thtat found by deployment/findpvdir.
+// pvdataMeta.pvname
+//   The persistentvolume claimed by persistentvolumeclaim for podis mounts.
+//   pod mounted pvc -> pvc claims pv -> k8s admin create pv manually or created by storageclass automatically.
+//
 type pvdataMeta struct {
 	volumeSource string
 	nodeName     string
@@ -34,6 +57,18 @@ type pvdataMeta struct {
 	pvdir        string
 	pvname       string
 }
+
+type Storage string
+
+const (
+	StorageNFS        Storage = "nfs"
+	StorageMinIO      Storage = "minio"
+	StorageS3         Storage = "s3"
+	StorageCephFS     Storage = "cephfs"
+	StorageRestServer Storage = "restServer"
+	StorageSFTP       Storage = "sftp"
+	StorageRclone     Storage = "rclone"
+)
 
 const (
 	defaultClusterName = "kubernetes"
@@ -47,10 +82,16 @@ const (
 	HostBackupToS3    = "backup-to-s3"
 	HostBackupToMinio = "backup-to-minio"
 
-	findpvdirName    = "findpvdir"
-	findpvdirImage   = "hybfkuf/findpvdir:latest"
-	backuptonfsName  = "backup-to-nfs"
-	backuptonfsImage = "hybfkuf/backup-tools-restic:latest"
+	findpvdirName        = "findpvdir"
+	findpvdirImage       = "hybfkuf/findpvdir:latest"
+	backuptonfsName      = "backup-to-nfs"
+	backuptonfsImage     = "hybfkuf/backup-tools-restic:latest"
+	backuptominioName    = "backup-to-minio"
+	backuptominioImage   = backuptonfsImage
+	backuptominioUser    = "minioadmin"
+	backuptominioPass    = "minioadmin"
+	secretMinioAccessKey = "MINIO_ACCESS_KEY"
+	secretMinioSecretKey = "MINIO_SECRET_KEY"
 
 	createdTimeAnnotation   = "storage.hybfkuf.io/createdAt"
 	updatedTimeAnnotation   = "storage.hybfkuf.io/updatedAt"
@@ -69,6 +110,7 @@ var (
 	dsHandler  = daemonset.NewOrDie(ctx, "", "")
 	pvHandler  = persistentvolume.NewOrDie(ctx, "")
 	pvcHandler = persistentvolumeclaim.NewOrDie(ctx, "", "")
+	secHandler = secret.NewOrDie(ctx, "", "")
 )
 
 var (
@@ -159,27 +201,6 @@ func BackupToNFS(ctx context.Context, operatorNamespace string,
 	// deployment/findpvdir to find the pv data directory in the k8s node,
 	// and for deployment/backuptonfs to create a pod to backup the pv data to nfs server.
 	//
-	// The structured object for pv metadata is named pvdataMeta.
-	// pvdataMeta.volumeSource:
-	//   every persistentvolume(aka pv) has a backend valume, and the volme source
-	//   could be "csi", "nfs" or "hostPath"(further more see pv.spec). pvdataMeta.volumeSource
-	//   value contains the pv backend volume source type, such as csi, "nfs", "rbd" or "hostPath".
-	// pvdataMeta.nodeName:
-	//   nodeName indicates the k8s node name that the pod is running. the nodeName
-	//   is required by deployment/findpvdir to find the the persistentvolume data directory
-	//   path in the k8s node.
-	// pvdataMeta.podName:
-	//   The name of the deployment/statefulset/daemonset owned pod that we should to backup.
-	//   To backup persistentvolume data to nfs/minio/s3 reqests it.
-	// pvdataMeta.podUID
-	//   The UID name of the deployment/statefulset/daemonset owned pod that we should to backup.
-	//   To find the persistentvolume data directory path in k8s node requests it.
-	// pvdataMeta.pvdir
-	//   The persistentvolume data directory path in k8s node thtat found by deployment/findpvdir.
-	// pvdataMeta.pvname
-	//   The persistentvolume claimed by persistentvolumeclaim for podis mounts.
-	//   pod mounted pvc -> pvc claims pv -> k8s admin create pv manually or created by storageclass automatically.
-	//
 	// restic command to backup persistentvolume data to remote storage(nfs/minio/s3, etc.) should
 	// specific the backup source.
 	// The backup source is a file or directory path in k8s node, and the file or directory path
@@ -243,7 +264,7 @@ func BackupToNFS(ctx context.Context, operatorNamespace string,
 			if pvdir, costedTime, err = createFindpvdirDeployment(operatorNamespace, backupObj, meta); err != nil {
 				return fmt.Errorf("create deployment/%s error: %s", findpvdirName+"-"+meta.nodeName, err.Error())
 			}
-			logger.WithField("Cost", costedTime.String()).Infof("Found pvc/%s data directory path of pod/%s", pvc, podObj.GetName())
+			logger.WithField("Cost", costedTime.String()).Infof("Found pvc/%s mounted by pod/%s", pvc, podObj.GetName())
 			if len(pvdir) == 0 {
 				logger.WithField("VolumeSource", meta.volumeSource).Warnf("PVC/%s data directory not found", pvc)
 				continue
@@ -264,103 +285,116 @@ func BackupToNFS(ctx context.Context, operatorNamespace string,
 		logger.Debugf("%v: %v", pvc, meta)
 	}
 
-	// 4. create deployment/backuptonfs to backup every pvc/data volume data.
-	// there are three condition should meet.
-	//   1.deployment mount the persistentvolumeclaim we should backup
-	//   2.deployment mount nfs storage as persistentvolumeclaim
-	//   3.execute restic commmand to backup persistentvolumeclaim data
-	//     - "restic list keys" check whether resitc repository exist
-	//     - "restic init" initial a resitc repository when repository not exist.
-	//     - "restic backup" backup the persistentvolume data to nfs storage.
-	for pvc, meta := range pvcpvMap {
-		// create the deployment/backuptonfs
-		var backuptonfsPod string
-		var costedTime time.Duration
-		if backuptonfsPod, costedTime, err = createBackuptonfsDeployment(operatorNamespace, backupObj, nfs, meta); err != nil {
-			return err
-		}
-		logger.WithField("Cost", costedTime.String()).Infof("Create deployment/%s", "backuptonfs"+"-"+meta.nodeName)
-		// execute restic commmand whith pod owned by deployment/backuptonfs to backup persistentvolume data.
-		if costedTime, err = backupByRestic(ctx, operatorNamespace, backuptonfsPod, backupObj, pvc, meta, HostBackupToNFS); err != nil {
-			return err
-		}
-		logger.WithField("Cost", costedTime.String()).Infof("Backup pvc/%s mounted by pod/%s", pvc, meta.podName)
+	if _, err = backupToRemote(operatorNamespace, backupObj, pvcpvMap); err != nil {
+		return err
 	}
 
 	logger.WithField("Cost", time.Now().Sub(beginTime).String()).
-		Infof("Successfully Backup The PVC Mounted by %s/%s to NFS Server", backupFrom.Resource, backupFrom.Name)
+		Infof("Successfully Backup %s/%s", backupFrom.Resource, backupFrom.Name)
 	return nil
+}
+
+// backupToRemote
+func backupToRemote(operatorNamespace string, backupObj *storagev1alpha1.Backup, pvcpvMap map[string]pvdataMeta) (time.Duration, error) {
+	beginTime := time.Now()
+	podHandler.ResetNamespace(operatorNamespace)
+	logger := logrus.WithFields(logrus.Fields{
+		"Component": "backup",
+		"Tool":      "restic",
+	})
+
+	for pvc, meta := range pvcpvMap {
+		for _, remoteStorage := range parseBackupTo(backupObj) {
+			var err error
+			var execPod *corev1.Pod
+			var costedTime time.Duration
+			switch remoteStorage {
+			case string(StorageNFS):
+				// create deployment/backuptonfs to backup every pvc volume data.
+				// there are three condition should meet.
+				//   1.deployment mount the persistentvolumeclaim we should backup
+				//   2.deployment mount nfs storage as persistentvolumeclaim
+				//   3.execute restic commmand to backup persistentvolumeclaim data
+				//     - "restic list keys" check whether resitc repository exist
+				//     - "restic init" initial a resitc repository when repository not exist.
+				//     - "restic backup" backup the persistentvolume data to nfs storage.
+				if execPod, _, err = createBackup2nfsDeployment(operatorNamespace, backupObj, meta); err != nil {
+					return time.Now().Sub(beginTime), err
+				}
+				// execute restic command to backup persistentvolume data to remote storage within the pod.
+				if costedTime, err = backupByRestic(operatorNamespace, backupObj, execPod, pvc, meta, StorageNFS); err != nil {
+					return time.Now().Sub(beginTime), err
+				}
+				logger.WithFields(logrus.Fields{
+					"Cost":    costedTime.String(),
+					"Storage": "NFS",
+				}).Infof("Successfully backup pvc/%s", pvc)
+			case string(StorageMinIO):
+				// create deployment/backuptominio to backup every pvc volume data
+				// there are two condition should meet.
+				//   1.deployment mount the persistentvolumeclaim we should backup
+				//   2.execute restic commmand to backup persistentvolumeclaim data
+				//     - "restic list keys" check whether resitc repository exist
+				//     - "restic init" initial a resitc repository when repository not exist.
+				//     - "restic backup" backup the persistentvolume data to nfs storage.
+				if execPod, _, err = createBackup2minioDepoyment(operatorNamespace, backupObj, meta); err != nil {
+					return time.Now().Sub(beginTime), err
+				}
+				logger.WithFields(logrus.Fields{
+					"Cost":    costedTime.String(),
+					"Storage": "MinIO",
+				})
+				// execute restic command to backup persistentvolume data to remote storage within the pod.
+				if costedTime, err = backupByRestic(operatorNamespace, backupObj, execPod, pvc, meta, StorageMinIO); err != nil {
+					return time.Now().Sub(beginTime), err
+				}
+				logger.WithFields(logrus.Fields{
+					"Cost":    costedTime.String(),
+					"Storage": "MinIO",
+				}).Infof("Successfully backup pvc/%s", pvc)
+			}
+		}
+	}
+
+	return time.Now().Sub(beginTime), nil
 }
 
 // createFindpvdirDeployment
 func createFindpvdirDeployment(operatorNamespace string, backupObj *storagev1alpha1.Backup, meta pvdataMeta) (string, time.Duration, error) {
-	var (
-		err             error
-		findpvdirObj    = &appsv1.Deployment{}
-		findpvdirRsList = []*appsv1.ReplicaSet{}
-		findpvdirRS     = &appsv1.ReplicaSet{}
-		findpvdirPods   = []*corev1.Pod{}
-		findpvdirPod    = &corev1.Pod{}
-	)
-
 	beginTime := time.Now()
 	podHandler.ResetNamespace(operatorNamespace)
-	depHandler.ResetNamespace(operatorNamespace)
-	rsHandler.ResetNamespace(operatorNamespace)
 	logger := logrus.WithFields(logrus.Fields{
 		"Component": findpvdirName,
 	})
 
 	deployName := findpvdirName + "-" + meta.nodeName
-	findpvdirBytes := []byte(fmt.Sprintf(findpvdirDeploymentTemplate,
+	findpvdirBytes := []byte(fmt.Sprintf(
+		// the deployment template
+		findpvdirDeploymentTemplate,
+		// deployment.metadata.name
+		// deployment.metadata.namespace
+		// deployment name, deployment namespace
 		deployName, operatorNamespace,
+		// deployment.spec.template.metadata.annotations
+		// pod template annotations
 		updatedTimeAnnotation, time.Now().Format(time.RFC3339),
-		meta.nodeName, findpvdirImage, backupObj.Spec.TimeZone))
-	if findpvdirObj, err = depHandler.Apply(findpvdirBytes); err != nil {
-		return "", time.Now().Sub(beginTime), fmt.Errorf("deployment handler apply deployment/%s failed: %s", findpvdirName, err.Error())
-	}
-	logger.Debugf("waiting deployment/%s to be available and ready.", deployName)
-	if err := depHandler.WaitReady(deployName); err != nil {
-		logger.Errorf("createFindpvdirDeployment WaitReady error: %s", err.Error())
-	}
-
-	// 使用 findpvdirObj 作为参数传入而不是使用 findpvdirName 作为参数传入,
-	// 虽然 GetRS() 可以通过一个 deployment 名字或者 deployment 对象来找到
-	// 其管理的 ReplicaSet, 但是如果传入的是 deployment 的名字, GetRS() 需额外
-	// 通过 Get API Server 接口找到 Deployment 对象. 具体请看 GetRS() 的源码.
-	if findpvdirRsList, err = depHandler.GetRS(findpvdirObj); err != nil {
-		return "", time.Now().Sub(beginTime), fmt.Errorf("deployment handler get replicasets failed: %s", err.Error())
-	}
-	// 只有 ReplicaSet 的 replicas 的值不为 nil 且大于0, 则表明该 ReplicaSet
-	// 就是当前 Deployment 正在使用的 ReplicaSet.
-	for i := range findpvdirRsList {
-		findpvdirRS = findpvdirRsList[i]
-		if findpvdirRS.Spec.Replicas != nil && *findpvdirRS.Spec.Replicas > 0 {
-			// 优先使用 replicaset.Handler, 而不是 deployment.Handler
-			// 因为 deployment.Handler 还额外调用 list API 接口来获取其管理
-			// 的所有 replicaset 对象.
-			// 我们已经找到了我们需要的 replicaset, 直接用过 replicaset.Handler
-			// 来找到该 replicaset 下管理的所有 Pod 即可
-			if findpvdirPods, err = rsHandler.GetPods(findpvdirRS); err != nil {
-				return "", time.Now().Sub(beginTime), fmt.Errorf("replicaset handler get pods failed: %s", err.Error())
-			}
-			break
-		}
-	}
-	// 同时要确保该 Pod 是 "Running" 状态
-	for i := range findpvdirPods {
-		findpvdirPod = findpvdirPods[i]
-		if findpvdirPod.Status.Phase == corev1.PodRunning {
-			logger.Debugf("finding persistentvolume data directory path by execute command within pod/%s", findpvdirPod.Name)
-			break
-		}
+		// deployment.spec.template.spec.nodeName
+		// deployment.spec.template.spec.containers.image
+		// node name, deployment image
+		meta.nodeName, findpvdirImage,
+		// deployment.spec.template.spec.containers.env
+		// the environment variables passed to pods.
+		backupObj.Spec.TimeZone))
+	podObj, err := createAndGetRunningPod(operatorNamespace, findpvdirBytes)
+	if err != nil {
+		return "", time.Now().Sub(beginTime), err
 	}
 
-	cmdFindpvdir := []string{"findpvdir", "--pod-uid", meta.podUID, "--storage-type", meta.volumeSource}
 	// if persistentvolume volume source is hostPath or local, the returned value
 	// is pvpath not pvdir, and pvpath = pvdir + pvname.
 	// And it's no need to find the persistentvolume data directory path now, just return
 	// the "hostPath" or "local" in k8s node path.
+	cmdFindpvdir := []string{"findpvdir", "--pod-uid", meta.podUID, "--storage-type", meta.volumeSource}
 	switch meta.volumeSource {
 	case volumeHostPath:
 		pvObj, err := pvHandler.Get(meta.pvname)
@@ -376,88 +410,111 @@ func createFindpvdirDeployment(operatorNamespace string, backupObj *storagev1alp
 		return pvObj.Spec.Local.Path, time.Now().Sub(beginTime), nil
 	}
 	logger.Debugf("executing command %v to find persistentvolume data in node %s", cmdFindpvdir, meta.nodeName)
-	//cmdFindpvdir := []string{"findpvdir", "--pod-uid", podUID, "--storage-type", "csi"}
-	// 在这个 pod 中执行命令, 来查找需要备份的 pod 的 pv 挂载在 k8s 节点上的路径.
-	// pvpath 用来存放命令行的输出, 这个输出中包含了需要备份的 pv 所在 k8s node 上的路径.
+
+	// It will execute command "cmdFindpvdir" within pod to find the persistentvolume data directory path
+	// and output it to stdout.
 	stdout := new(bytes.Buffer)
-	if err := podHandler.ExecuteWithStream(findpvdirPod.Name, "", cmdFindpvdir, os.Stdin, stdout, io.Discard); err != nil {
+	if err := podHandler.ExecuteWithStream(podObj.Name, "", cmdFindpvdir, os.Stdin, stdout, io.Discard); err != nil {
 		return "", time.Now().Sub(beginTime), fmt.Errorf("%s find the persistentvolume data directory failed: %s", findpvdirName, err.Error())
 	}
-
 	return strings.TrimSpace(stdout.String()), time.Now().Sub(beginTime), nil
 }
 
-// createBackuptonfsDeployment
-func createBackuptonfsDeployment(operatorNamespace string, backupObj *storagev1alpha1.Backup, nfs *storagev1alpha1.NFS, meta pvdataMeta) (string, time.Duration, error) {
-	var (
-		err               error
-		backuptonfsObj    = &appsv1.Deployment{}
-		backuptonfsRsList = []*appsv1.ReplicaSet{}
-		backuptonfsRS     = &appsv1.ReplicaSet{}
-		backuptonfsPods   = []*corev1.Pod{}
-		backuptonfsPod    = &corev1.Pod{}
-	)
-
+// createBackup2nfsDeployment
+func createBackup2nfsDeployment(operatorNamespace string, backupObj *storagev1alpha1.Backup, meta pvdataMeta) (*corev1.Pod, time.Duration, error) {
 	beginTime := time.Now()
-	podHandler.ResetNamespace(operatorNamespace)
-	depHandler.ResetNamespace(operatorNamespace)
-	rsHandler.ResetNamespace(operatorNamespace)
-	logger := logrus.WithFields(logrus.Fields{
-		"Component": "backup",
-	})
 
-	// pvpath 示例: /var/lib/kubelet/pods/00b224d7-e9c5-42d3-94ca-516a99274a66/volumes/kubernetes.io~nfs
-	// pvpath 格式为: /var/lib/kubelet/pods + pod UID + volumes + pvc 类型
-	// 该路径下包含了一个或多个目录, 每个目录的名字就是 pv 的名字. 例如:
-	// /var/lib/kubelet/pods/787b3c5d-d11e-4d63-846f-6abd86683dbd/volumes/kubernetes.io~nfs/pvc-19ff22c4-e54f-4c13-8f1d-7a72e874ca08
 	deployName := backuptonfsName + "-" + meta.nodeName
-	backuptonfsBytes := []byte(fmt.Sprintf(backuptonfsDeploymentTemplate,
+	backuptonfsBytes := []byte(fmt.Sprintf(
+		// the deployment template
+		backuptonfsDeploymentTemplate,
+		// deployment.metadata.name
+		// deployment.metadata.namespace
+		// deployment name, deployment namespace
 		deployName, operatorNamespace,
+		// deployment.spec.template.metadata.annotations
+		// pod template annotations
 		updatedTimeAnnotation, time.Now().Format(time.RFC3339),
-		meta.nodeName, backuptonfsImage, backupObj.Spec.TimeZone,
-		//pvdir, pvdir,
-		nfs.Server, nfs.Path))
-	if backuptonfsObj, err = depHandler.Apply(backuptonfsBytes); err != nil {
-		return "", time.Now().Sub(beginTime), err
+		// deployment.spec.template.spec.nodeName
+		// deployment.spec.template.spec.containers.image
+		// node name, deployment image
+		meta.nodeName, backuptonfsImage,
+		// deployment.spec.template.spec.containers.env
+		// the environment variables passed to pods
+		backupObj.Spec.TimeZone, resticRepo,
+		// restic repository mount path
+		// deployment.spec.template.containers.env
+		backupObj.Spec.BackupTo.NFS.CredentialName, resticRepo,
+		// deployment.spec.template.volumes
+		// the volumes mounted by pod
+		backupObj.Spec.BackupTo.NFS.Server, backupObj.Spec.BackupTo.NFS.Path))
+	podObj, err := createAndGetRunningPod(operatorNamespace, backuptonfsBytes)
+	if err != nil {
+		return nil, time.Now().Sub(beginTime), err
 	}
-	logger.Debugf("waiting deployment/%s to be available and ready.", deployName)
-	if err := depHandler.WaitReady(deployName); err != nil {
-		logger.Errorf("createBackuptonfsDeployment WaitReady error: %s", err.Error())
-	}
-
-	// 先找到 backuptonfs 这个 Deployment 下所有管理的 ReplicaSet
-	// 使用 backuptonfsObj 而不是 backuptonfsName, 因为前者比后者少一个 List API 请求
-	if backuptonfsRsList, err = depHandler.GetRS(backuptonfsObj); err != nil {
-		return "", time.Now().Sub(beginTime), fmt.Errorf("deployment handler get replicasets error: %s", err.Error())
-	}
-	for i := range backuptonfsRsList {
-		backuptonfsRS = backuptonfsRsList[i]
-		if backuptonfsRS.Spec.Replicas != nil && *backuptonfsRS.Spec.Replicas > 0 {
-			if backuptonfsPods, err = rsHandler.GetPods(backuptonfsRS); err != nil {
-				return "", time.Now().Sub(beginTime), fmt.Errorf("replicaset handler get pods error: %s", err.Error())
-			}
-			break
-		}
-	}
-	// 确保该 Pod 是 "Running" 状态
-	for i := range backuptonfsPods {
-		backuptonfsPod = backuptonfsPods[i]
-		if backuptonfsPod.Status.Phase == corev1.PodRunning {
-			break
-		}
-
-	}
-	return backuptonfsPod.Name, time.Now().Sub(beginTime), nil
+	return podObj, time.Now().Sub(beginTime), nil
 }
 
-// createBackuptominioDepoyment backup persistentvolume data to minio object storage
-//func createBackuptominioDepoyment(operatorNamespace string, backupObj *storagev1alpha1.Backup, minio *storagev1alpha1)
+// createBackup2minioDepoyment backup persistentvolume data to minio object storage
+func createBackup2minioDepoyment(operatorNamespace string, backupObj *storagev1alpha1.Backup, meta pvdataMeta) (*corev1.Pod, time.Duration, error) {
+	beginTime := time.Now()
 
-// ArgHost 作为 restic backup --host 的参数值
-// pvdir + pv 就是实际的 pv 数据的存放路径
-func backupByRestic(ctx context.Context, operatorNamespace string, execPod string,
-	backupObj *storagev1alpha1.Backup, pvc string, meta pvdataMeta, ArgHost string) (time.Duration, error) {
+	scheme := backupObj.Spec.BackupTo.MinIO.Endpoint.Scheme
+	address := backupObj.Spec.BackupTo.MinIO.Endpoint.Address
+	port := backupObj.Spec.BackupTo.MinIO.Endpoint.Port
+	bucket := backupObj.Spec.BackupTo.MinIO.Bucket
+	folder := backupObj.Spec.BackupTo.MinIO.Folder
+	credentialName := backupObj.Spec.BackupTo.MinIO.CredentialName
 
+	secHandler.ResetNamespace(operatorNamespace)
+	secObj, err := secHandler.Get(backupObj.Spec.BackupTo.MinIO.CredentialName)
+	if err != nil {
+		return nil, time.Duration(0), fmt.Errorf("secret handler get secret error: %s", err.Error())
+	}
+	accessKey := string(secObj.Data[secretMinioAccessKey])
+	secretKey := string(secObj.Data[secretMinioSecretKey])
+
+	endpoint := address + ":" + strconv.Itoa(int(port))
+	resticRepo := "s3:" + scheme + "://" + endpoint + "/" + bucket
+	if len(folder) != 0 {
+		resticRepo = resticRepo + folder
+	}
+	// create minio bucket
+	client := minio.New(endpoint, accessKey, secretKey, false)
+	if err := minio.MakeBucket(client, bucket, ""); err != nil {
+		return nil, time.Duration(0), fmt.Errorf("make minio bucket error: %s", err.Error())
+	}
+
+	deployName := backuptominioName + "-" + meta.nodeName
+	backuptominioBytes := []byte(fmt.Sprintf(
+		// the deployment template
+		backuptominioDeploymentTemplate,
+		// deployment.metadata.name
+		// deployment.metadata.namespace
+		// deployment name, deployment namespace
+		deployName, operatorNamespace,
+		// deployment.spec.template.metadata.annotations
+		// pod template annotations
+		updatedTimeAnnotation, time.Now().Format(time.RFC3339),
+		// deployment.spec.template.spec.nodeName
+		// deployment.spec.template.spec.containers.image
+		// node name, deployment image
+		meta.nodeName, backuptominioImage,
+		// deployment.spec.template.spec.containers.env
+		// the environment variables passed to pods
+		backupObj.Spec.TimeZone, resticRepo,
+		credentialName, credentialName, credentialName, credentialName, credentialName,
+	))
+	podObj, err := createAndGetRunningPod(operatorNamespace, backuptominioBytes)
+	if err != nil {
+		return nil, time.Now().Sub(beginTime), err
+	}
+	return podObj, time.Now().Sub(beginTime), nil
+}
+
+// backupByRestic
+// clusterName as the --host argument
+func backupByRestic(operatorNamespace string, backupObj *storagev1alpha1.Backup, execPod *corev1.Pod, pvc string, meta pvdataMeta, storage Storage) (time.Duration, error) {
 	beginTime := time.Now()
 	podHandler.ResetNamespace(operatorNamespace)
 	logger := logrus.WithFields(logrus.Fields{
@@ -486,28 +543,28 @@ func backupByRestic(ctx context.Context, operatorNamespace string, execPod strin
 		pvpath = filepath.Join(mountHostRootPath, meta.pvdir)
 	}
 	logger.Debugf("the path of persistentvolume data in k8s node: %s", pvpath)
-	logger.Debugf("executing restic command to backup persistentvolume data within pod/%s", execPod)
-	res := restic.NewIgnoreNotFound(ctx, &restic.GlobalFlags{NoCache: true, Repo: resticRepo})
-	tags := []string{string(backupObj.Spec.BackupFrom.Resource), clusterName, backupObj.Namespace, backupObj.Spec.BackupFrom.Name, pvc}
-	CmdCheckRepo := res.Command(restic.List{}.SetArgs("keys")).String()
-	CmdInitRepo := res.Command(restic.Init{}).String()
-	CmdBackup := res.Command(restic.Backup{Tag: tags, Host: ArgHost}.SetArgs(pvpath)).String()
+	logger.Debugf("executing restic command to backup persistentvolume data within pod/%s", execPod.GetName())
+	res := restic.NewIgnoreNotFound(context.TODO(), &restic.GlobalFlags{NoCache: true})
+	tags := []string{string(backupObj.Spec.BackupFrom.Resource), backupObj.Namespace, backupObj.Spec.BackupFrom.Name, pvc}
+	cmdCheckRepo := res.Command(restic.List{}.SetArgs("keys")).String()
+	cmdInitRepo := res.Command(restic.Init{}).String()
+	cmdBackup := res.Command(restic.Backup{Tag: tags, Host: clusterName}.SetArgs(pvpath)).String()
 
-	logger.Debug(CmdCheckRepo)
+	logger.Debug(cmdCheckRepo)
 	// 如果 restic list keys 失败, 说明 restic repository 不存在,则需要创建一下
-	if err := podHandler.ExecuteWithStream(execPod, "", strings.Split(CmdCheckRepo, " "),
+	if err := podHandler.ExecuteWithStream(execPod.GetName(), "", strings.Split(cmdCheckRepo, " "),
 		createPassStdin(resticPasswd, 1), io.Discard, io.Discard); err != nil {
 		// 需要输入两遍密码, 一定需要输入两个 "\n", 否则 "restic init" 会一直卡在这里
 		// 如果 restic list keys 失败, 说明 restic repository 不存在,则需要创建一下
-		logger.Debug(CmdInitRepo)
-		if err := podHandler.ExecuteWithStream(execPod, "", strings.Split(CmdInitRepo, " "),
+		logger.Debug(cmdInitRepo)
+		if err := podHandler.ExecuteWithStream(execPod.GetName(), "", strings.Split(cmdInitRepo, " "),
 			createPassStdin(resticPasswd, 2), io.Discard, io.Discard); err != nil {
 			logger.Error("restic init failed")
 			return time.Now().Sub(beginTime), nil
 		}
 	}
-	logger.Debug(CmdBackup)
-	if err := podHandler.WithNamespace(operatorNamespace).ExecuteWithStream(execPod, "", strings.Split(CmdBackup, " "),
+	logger.Debug(cmdBackup)
+	if err := podHandler.WithNamespace(operatorNamespace).ExecuteWithStream(execPod.GetName(), "", strings.Split(cmdBackup, " "),
 		createPassStdin(resticPasswd), io.Discard, io.Discard); err != nil {
 		logger.Errorf("restic backup pvc/%s failed, maybe the directory/file of %s do not exist in k8s node", pvc, pvpath)
 	}
