@@ -30,6 +30,7 @@ spec:
     nfs:
       server: 1.1.1.1
       path: /srv/nfs/restic
+      credentialName: minio-credential
     minio:
       endpoint:
         scheme: http
