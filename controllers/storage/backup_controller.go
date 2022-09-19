@@ -77,7 +77,7 @@ func (r *BackupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	err := r.Get(ctx, req.NamespacedName, backupObj)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			logger.Info("backup was deleted", backupObj.GetName())
+			//logger.Info("backup was deleted", backupObj.GetName())
 			return ctrl.Result{}, nil
 		}
 		logger.Info(backupObj.Name)
