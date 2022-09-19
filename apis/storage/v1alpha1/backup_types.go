@@ -93,6 +93,9 @@ type BackupTo struct {
 	// backup to S3
 	// +optional
 	S3 *S3 `json:"s3"`
+	// backup to MinIO
+	// +optional
+	MinIO *MinIO `json:"minio"`
 	// backup to rest server
 	// +optional
 	RestServer *RestServer `json:"restServer"`
@@ -109,6 +112,10 @@ type NFS struct {
 	Server string `json:"server"`
 	// path that is exported by the NFS server.
 	Path string `json:"path"`
+	// CredentialName is a k8s secret name and must exist in the same namespace
+	// as the horus-operator.
+	// RESTIC_PASSWORD:  restic password
+	CredentialName string `json:"credentialName"`
 }
 
 type PVC struct {
@@ -145,18 +152,32 @@ type S3 struct {
 }
 
 type MinIO struct {
-	Endpoint string `json:"endpoint"`
-	Bucket   string `json:"bucket"`
+	Endpoint *MinioEndpoint `json:"endpoint"`
+	Bucket   string         `json:"bucket"`
 	// +optional
 	Folder string `json:"folder"`
-	// secret.data should contain two field: accessKey, secretKey
+	// CredentialName is a k8s secret name and must exist in the same namespace
+	// as the horus-operator.
+	// RESTIC_PASSWORD:  restic password
+	// MINIO_ACCESS_KEY: minio access key
+	// MINIO_SECRET_KEY: minio secret key
 	CredentialName string `json:"credentialName"`
 	// +optional
 	CredentialNamespace string `json:"credentialNamespace"`
 	// +optional
 	InsecureTLSSkipVerify bool `json:"insecureTLSSkipVerify"`
-	// + optional
+	// +optional
 	Region string `json:"region"`
+}
+
+type MinioEndpoint struct {
+	// scheme default to `https`
+	// +optional
+	Scheme  string `json:"scheme"`
+	Address string `json:"address"`
+	// port default to `9000`
+	// +optional
+	Port int32 `json:"port"`
 }
 
 type RestServer struct {
