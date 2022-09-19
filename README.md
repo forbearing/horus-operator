@@ -12,6 +12,48 @@ There are five API:
 
 API description:
 
+
+
+## Backup Object examples:
+
+```yaml
+apiVersion: storage.hybfkuf.io/v1alpha1
+kind: Backup
+metadata:
+  name: backup-sample
+spec:
+  schedule: "*/1 * * * *"
+  backupFrom:
+    resource: statefulset
+    name: nginx-sts
+  backupTo:
+    nfs:
+      server: 1.1.1.1
+      path: /srv/nfs/restic
+    minio:
+      endpoint:
+        scheme: http
+        address: 1.1.1.1
+        port: 9000
+      bucket: restic
+      credentialName: minio-credential
+  timezone: 'Asia/Shanghai'
+  timeout: 10m
+  cluster: mycluster
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: minio-credential
+  namespace: horus-operator
+stringData:
+  MINIO_ACCESS_KEY: "minioadmin"
+  MINIO_SECRET_KEY: "minioadmin"
+  RESTIC_PASSWORD: "restic"
+```
+
+
+
 ## Getting Started
 You’ll need a Kubernetes cluster to run against. You can use [KIND](https://sigs.k8s.io/kind) to get a local cluster for testing, or run against a remote cluster.
 **Note:** Your controller will automatically use the current context in your kubeconfig file (i.e. whatever cluster `kubectl cluster-info` shows).
