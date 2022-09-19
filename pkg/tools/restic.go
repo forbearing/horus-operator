@@ -14,6 +14,7 @@ import (
 
 	storagev1alpha1 "github.com/forbearing/horus-operator/apis/storage/v1alpha1"
 	"github.com/forbearing/horus-operator/pkg/minio"
+	"github.com/forbearing/horus-operator/pkg/template"
 	"github.com/forbearing/k8s/daemonset"
 	"github.com/forbearing/k8s/deployment"
 	"github.com/forbearing/k8s/persistentvolume"
@@ -73,10 +74,9 @@ const (
 const (
 	defaultClusterName = "kubernetes"
 
-	resticBackupSource = "/backup-source"
-	resticRepo         = "/restic-repo"
-	resticPasswd       = "mypass"
-	mountHostRootPath  = "/host-root"
+	resticRepo        = "/restic-repo"
+	resticPasswd      = "mypass"
+	mountHostRootPath = "/host-root"
 
 	HostBackupToNFS   = "backup-to-nfs"
 	HostBackupToS3    = "backup-to-s3"
@@ -84,12 +84,10 @@ const (
 
 	findpvdirName        = "findpvdir"
 	findpvdirImage       = "hybfkuf/findpvdir:latest"
-	backuptonfsName      = "backup-to-nfs"
-	backuptonfsImage     = "hybfkuf/backup-tools-restic:latest"
-	backuptominioName    = "backup-to-minio"
-	backuptominioImage   = backuptonfsImage
-	backuptominioUser    = "minioadmin"
-	backuptominioPass    = "minioadmin"
+	backup2nfsName       = "backup-to-nfs"
+	backup2nfsImage      = "hybfkuf/backup-tools-restic:latest"
+	backup2minioName     = "backup-to-minio"
+	backup2minioImage    = backup2nfsImage
 	secretMinioAccessKey = "MINIO_ACCESS_KEY"
 	secretMinioSecretKey = "MINIO_SECRET_KEY"
 
@@ -318,7 +316,7 @@ func backupToRemote(operatorNamespace string, backupObj *storagev1alpha1.Backup,
 				//     - "restic list keys" check whether resitc repository exist
 				//     - "restic init" initial a resitc repository when repository not exist.
 				//     - "restic backup" backup the persistentvolume data to nfs storage.
-				if execPod, _, err = createBackup2nfsDeployment(operatorNamespace, backupObj, meta); err != nil {
+				if execPod, costedTime, err = createBackup2nfsDeployment(operatorNamespace, backupObj, meta); err != nil {
 					return time.Now().Sub(beginTime), err
 				}
 				// execute restic command to backup persistentvolume data to remote storage within the pod.
@@ -337,21 +335,17 @@ func backupToRemote(operatorNamespace string, backupObj *storagev1alpha1.Backup,
 				//     - "restic list keys" check whether resitc repository exist
 				//     - "restic init" initial a resitc repository when repository not exist.
 				//     - "restic backup" backup the persistentvolume data to nfs storage.
-				if execPod, _, err = createBackup2minioDepoyment(operatorNamespace, backupObj, meta); err != nil {
+				if execPod, costedTime, err = createBackup2minioDepoyment(operatorNamespace, backupObj, meta); err != nil {
 					return time.Now().Sub(beginTime), err
 				}
-				logger.WithFields(logrus.Fields{
-					"Cost":    costedTime.String(),
-					"Storage": "MinIO",
-				})
+				logger.WithFields(logrus.Fields{"Cost": costedTime.String(), "Storage": "MinIO"}).
+					Debugf("create deployment/%s")
 				// execute restic command to backup persistentvolume data to remote storage within the pod.
 				if costedTime, err = backupByRestic(operatorNamespace, backupObj, execPod, pvc, meta, StorageMinIO); err != nil {
 					return time.Now().Sub(beginTime), err
 				}
-				logger.WithFields(logrus.Fields{
-					"Cost":    costedTime.String(),
-					"Storage": "MinIO",
-				}).Infof("Successfully backup pvc/%s", pvc)
+				logger.WithFields(logrus.Fields{"Cost": costedTime.String(), "Storage": "MinIO"}).
+					Infof("Successfully backup pvc/%s", pvc)
 			}
 		}
 	}
@@ -370,7 +364,7 @@ func createFindpvdirDeployment(operatorNamespace string, backupObj *storagev1alp
 	deployName := findpvdirName + "-" + meta.nodeName
 	findpvdirBytes := []byte(fmt.Sprintf(
 		// the deployment template
-		findpvdirDeploymentTemplate,
+		template.FindpvdirDeploymentTemplate,
 		// deployment.metadata.name
 		// deployment.metadata.namespace
 		// deployment name, deployment namespace
@@ -424,10 +418,10 @@ func createFindpvdirDeployment(operatorNamespace string, backupObj *storagev1alp
 func createBackup2nfsDeployment(operatorNamespace string, backupObj *storagev1alpha1.Backup, meta pvdataMeta) (*corev1.Pod, time.Duration, error) {
 	beginTime := time.Now()
 
-	deployName := backuptonfsName + "-" + meta.nodeName
-	backuptonfsBytes := []byte(fmt.Sprintf(
+	deployName := backup2nfsName + "-" + meta.nodeName
+	backup2nfsBytes := []byte(fmt.Sprintf(
 		// the deployment template
-		backuptonfsDeploymentTemplate,
+		template.Backup2nfsDeploymentTemplate,
 		// deployment.metadata.name
 		// deployment.metadata.namespace
 		// deployment name, deployment namespace
@@ -438,7 +432,7 @@ func createBackup2nfsDeployment(operatorNamespace string, backupObj *storagev1al
 		// deployment.spec.template.spec.nodeName
 		// deployment.spec.template.spec.containers.image
 		// node name, deployment image
-		meta.nodeName, backuptonfsImage,
+		meta.nodeName, backup2nfsImage,
 		// deployment.spec.template.spec.containers.env
 		// the environment variables passed to pods
 		backupObj.Spec.TimeZone, resticRepo,
@@ -448,7 +442,7 @@ func createBackup2nfsDeployment(operatorNamespace string, backupObj *storagev1al
 		// deployment.spec.template.volumes
 		// the volumes mounted by pod
 		backupObj.Spec.BackupTo.NFS.Server, backupObj.Spec.BackupTo.NFS.Path))
-	podObj, err := createAndGetRunningPod(operatorNamespace, backuptonfsBytes)
+	podObj, err := createAndGetRunningPod(operatorNamespace, backup2nfsBytes)
 	if err != nil {
 		return nil, time.Now().Sub(beginTime), err
 	}
@@ -485,10 +479,10 @@ func createBackup2minioDepoyment(operatorNamespace string, backupObj *storagev1a
 		return nil, time.Duration(0), fmt.Errorf("make minio bucket error: %s", err.Error())
 	}
 
-	deployName := backuptominioName + "-" + meta.nodeName
-	backuptominioBytes := []byte(fmt.Sprintf(
+	deployName := backup2minioName + "-" + meta.nodeName
+	backup2minioBytes := []byte(fmt.Sprintf(
 		// the deployment template
-		backuptominioDeploymentTemplate,
+		template.Backup2minioDeploymentTemplate,
 		// deployment.metadata.name
 		// deployment.metadata.namespace
 		// deployment name, deployment namespace
@@ -499,13 +493,13 @@ func createBackup2minioDepoyment(operatorNamespace string, backupObj *storagev1a
 		// deployment.spec.template.spec.nodeName
 		// deployment.spec.template.spec.containers.image
 		// node name, deployment image
-		meta.nodeName, backuptominioImage,
+		meta.nodeName, backup2minioImage,
 		// deployment.spec.template.spec.containers.env
 		// the environment variables passed to pods
 		backupObj.Spec.TimeZone, resticRepo,
 		credentialName, credentialName, credentialName, credentialName, credentialName,
 	))
-	podObj, err := createAndGetRunningPod(operatorNamespace, backuptominioBytes)
+	podObj, err := createAndGetRunningPod(operatorNamespace, backup2minioBytes)
 	if err != nil {
 		return nil, time.Now().Sub(beginTime), err
 	}
@@ -513,7 +507,7 @@ func createBackup2minioDepoyment(operatorNamespace string, backupObj *storagev1a
 }
 
 // backupByRestic
-// clusterName as the --host argument
+// clusterName as the argument of flag --host.
 func backupByRestic(operatorNamespace string, backupObj *storagev1alpha1.Backup, execPod *corev1.Pod, pvc string, meta pvdataMeta, storage Storage) (time.Duration, error) {
 	beginTime := time.Now()
 	podHandler.ResetNamespace(operatorNamespace)
@@ -550,22 +544,19 @@ func backupByRestic(operatorNamespace string, backupObj *storagev1alpha1.Backup,
 	cmdInitRepo := res.Command(restic.Init{}).String()
 	cmdBackup := res.Command(restic.Backup{Tag: tags, Host: clusterName}.SetArgs(pvpath)).String()
 
+	// if `restic list keys` failed, it's means that the rstic repository not exist,
+	// we should execute `restic init` command to init restic repository.
 	logger.Debug(cmdCheckRepo)
-	// 如果 restic list keys 失败, 说明 restic repository 不存在,则需要创建一下
-	if err := podHandler.ExecuteWithStream(execPod.GetName(), "", strings.Split(cmdCheckRepo, " "),
-		createPassStdin(resticPasswd, 1), io.Discard, io.Discard); err != nil {
-		// 需要输入两遍密码, 一定需要输入两个 "\n", 否则 "restic init" 会一直卡在这里
-		// 如果 restic list keys 失败, 说明 restic repository 不存在,则需要创建一下
+	if err := podHandler.ExecuteWithStream(execPod.GetName(), "", strings.Split(cmdCheckRepo, " "), os.Stdin, io.Discard, io.Discard); err != nil {
 		logger.Debug(cmdInitRepo)
-		if err := podHandler.ExecuteWithStream(execPod.GetName(), "", strings.Split(cmdInitRepo, " "),
-			createPassStdin(resticPasswd, 2), io.Discard, io.Discard); err != nil {
-			logger.Error("restic init failed")
+		// if `restic init` failed, the next backup task wil not be continue.
+		if err := podHandler.ExecuteWithStream(execPod.GetName(), "", strings.Split(cmdInitRepo, " "), os.Stdin, io.Discard, io.Discard); err != nil {
+			logger.Fatal("restic init failed")
 			return time.Now().Sub(beginTime), nil
 		}
 	}
 	logger.Debug(cmdBackup)
-	if err := podHandler.WithNamespace(operatorNamespace).ExecuteWithStream(execPod.GetName(), "", strings.Split(cmdBackup, " "),
-		createPassStdin(resticPasswd), io.Discard, io.Discard); err != nil {
+	if err := podHandler.WithNamespace(operatorNamespace).ExecuteWithStream(execPod.GetName(), "", strings.Split(cmdBackup, " "), os.Stdin, io.Discard, io.Discard); err != nil {
 		logger.Errorf("restic backup pvc/%s failed, maybe the directory/file of %s do not exist in k8s node", pvc, pvpath)
 	}
 
