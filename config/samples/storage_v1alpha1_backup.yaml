@@ -5,11 +5,29 @@ metadata:
 spec:
   schedule: "*/1 * * * *"
   backupFrom:
-    resource: deployment
-    name: nginx-deploy
+    resource: statefulset
+    name: nginx-sts
   backupTo:
     nfs:
-      server: 10.250.16.21
+      server: 10.240.1.21
       path: /srv/nfs/restic
+    minio:
+      endpoint:
+        scheme: http
+        address: 10.240.1.21
+        port: 9000
+      bucket: restic
+      credentialName: minio-credential
   timezone: 'Asia/Shanghai'
   timeout: 10m
+  cluster: mycluster
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: minio-credential
+  namespace: horus-operator
+stringData:
+  MINIO_ACCESS_KEY: "minioadmin"
+  MINIO_SECRET_KEY: "minioadmin"
+  RESTIC_PASSWORD: "restic"

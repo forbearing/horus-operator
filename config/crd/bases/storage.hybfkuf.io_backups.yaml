@@ -74,9 +74,52 @@ spec:
                     - monitors
                     - path
                     type: object
+                  minio:
+                    description: backup to MinIO
+                    properties:
+                      bucket:
+                        type: string
+                      credentialName:
+                        description: 'CredentialName is a k8s secret name and must
+                          exist in the same namespace as the horus-operator. RESTIC_PASSWORD:  restic
+                          password MINIO_ACCESS_KEY: minio access key MINIO_SECRET_KEY:
+                          minio secret key'
+                        type: string
+                      credentialNamespace:
+                        type: string
+                      endpoint:
+                        properties:
+                          address:
+                            type: string
+                          port:
+                            description: port default to `9000`
+                            format: int32
+                            type: integer
+                          scheme:
+                            description: scheme default to `https`
+                            type: string
+                        required:
+                        - address
+                        type: object
+                      folder:
+                        type: string
+                      insecureTLSSkipVerify:
+                        type: boolean
+                      region:
+                        type: string
+                    required:
+                    - bucket
+                    - credentialName
+                    - endpoint
+                    type: object
                   nfs:
                     description: backup to nfs server
                     properties:
+                      credentialName:
+                        description: 'CredentialName is a k8s secret name and must
+                          exist in the same namespace as the horus-operator. RESTIC_PASSWORD:  restic
+                          password'
+                        type: string
                       path:
                         description: path that is exported by the NFS server.
                         type: string
@@ -85,6 +128,7 @@ spec:
                           server.
                         type: string
                     required:
+                    - credentialName
                     - path
                     - server
                     type: object
