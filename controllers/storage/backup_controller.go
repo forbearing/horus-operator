@@ -24,10 +24,8 @@ import (
 	storagev1alpha1 "github.com/forbearing/horus-operator/apis/storage/v1alpha1"
 	"github.com/forbearing/horus-operator/pkg/tools"
 	"github.com/go-logr/logr"
-	"github.com/sirupsen/logrus"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -63,25 +61,20 @@ type BackupReconciler struct {
 func (r *BackupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	//logger := log.FromContext(ctx)
 	//_ = logger
+	//logger := logrus.WithFields(logrus.Fields{
+	//    "Component": defaultOperatorName,
+	//})
 
 	namespace := os.Getenv("NAMESPACE")
 	if len(namespace) == 0 {
 		namespace = defaultOperatorNamespace
 	}
-	logger := logrus.WithFields(logrus.Fields{
-		"Component": defaultOperatorName,
-	})
 
 	// 1.get a "Backup" resource
 	backupObj := &storagev1alpha1.Backup{}
 	err := r.Get(ctx, req.NamespacedName, backupObj)
 	if err != nil {
-		if apierrors.IsNotFound(err) {
-			//logger.Info("backup was deleted", backupObj.GetName())
-			return ctrl.Result{}, nil
-		}
-		logger.Info(backupObj.Name)
-		return ctrl.Result{}, err
+		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
 	// Set the default tiemout for backup progress.
