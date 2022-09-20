@@ -24,15 +24,18 @@ import (
 	storagev1alpha1 "github.com/forbearing/horus-operator/apis/storage/v1alpha1"
 	"github.com/forbearing/horus-operator/pkg/tools"
 	"github.com/go-logr/logr"
+	"github.com/sirupsen/logrus"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 const (
+	defaultFinalizerName     = "backup.hybfkuf.io/finalizer"
 	defaultOperatorNamespace = "horus-operator"
 	defaultOperatorName      = "horus-operator"
 	defaultTimeout           = time.Minute * 10
@@ -174,4 +177,51 @@ func (r *BackupReconciler) cronjobForBackup(b *storagev1alpha1.Backup) *batchv1.
 	ctrl.SetControllerReference(b, cronjob, r.Scheme)
 
 	return cronjob
+}
+
+// handleFinalizer add finalizer when create/update Backup object, and remove
+// finalizer when delete Backup Object
+func (r *BackupReconciler) handleFinalizer(ctx context.Context, backupObj *storagev1alpha1.Backup) error {
+	// name of our custom finalizer
+	myFinalizerName := defaultFinalizerName
+	// examine DeletionTimestamp to determine if object is under deletion
+	if backupObj.ObjectMeta.DeletionTimestamp.IsZero() {
+		// The object is not being deleted, so if it does not have our finalizer,
+		// then lets add the finalizer and update the object. This is equivalent
+		// registering our finalizer.
+		if !controllerutil.ContainsFinalizer(backupObj, myFinalizerName) {
+			ok := controllerutil.AddFinalizer(backupObj, myFinalizerName)
+			logrus.Infof("Add Finalizer %s : %t", myFinalizerName, ok)
+			return r.Update(ctx, backupObj)
+		}
+	} else {
+		// The object is being deleted
+		if controllerutil.ContainsFinalizer(backupObj, myFinalizerName) {
+			// our finalizer is present, so lets handle any external dependency
+			if err := r.deleteExternalResources(backupObj); err != nil {
+				// if fail to delete the external dependency here, return with error
+				// so that it can be retried
+				return err
+			}
+			// remove our finalizer from the list and update it.
+			ok := controllerutil.RemoveFinalizer(backupObj, myFinalizerName)
+			logrus.Infof("Remove Finalizer %s : %t", myFinalizerName, ok)
+			return r.Update(ctx, backupObj)
+		}
+		// Stop reconciliation as the item is being deleted
+		return nil
+	}
+	// Stop reconciliation as the item is being deleted
+	return nil
+}
+
+// deleteExternalResources
+func (r *BackupReconciler) deleteExternalResources(backupObj *storagev1alpha1.Backup) error {
+	//
+	// delete any external resources associated with the cronJob
+	//
+	// Ensure that delete implementation is idempotent and safe to invoke
+	// multiple times for same object.
+
+	return nil
 }
