@@ -84,7 +84,7 @@ func main() {
 	flag.IntVar(&logLevel, "log-level", int(zapcore.InfoLevel), "set log level")
 	flag.BoolVar(&printVersion, "version", false, "print version and exist")
 	flag.BoolVar(&pprofActive, "pprof", false, "enable pprof endpoint")
-	flag.BoolVar(&webhookEnabled, "enable-webhook", true, "enable CRD conversion webhook")
+	flag.BoolVar(&webhookEnabled, "enable-webhook", false, "enable CRD conversion webhook")
 
 	opts := zap.Options{
 		Development: true, // for test or deployment only, set to true here.
@@ -164,6 +164,29 @@ func main() {
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", KindTraffic)
 		os.Exit(1)
+	}
+	// enable dynamic admission webhooks
+	if webhookEnabled {
+		if err = (&networkingv1alpha1.Traffic{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "Traffic")
+			os.Exit(1)
+		}
+		if err = (&storagev1alpha1.Backup{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "Backup")
+			os.Exit(1)
+		}
+		if err = (&storagev1alpha1.Restore{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "Restore")
+			os.Exit(1)
+		}
+		if err = (&storagev1alpha1.Clone{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "Clone")
+			os.Exit(1)
+		}
+		if err = (&storagev1alpha1.Migration{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "Migration")
+			os.Exit(1)
+		}
 	}
 	//+kubebuilder:scaffold:builder
 
