@@ -25,11 +25,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	networkingv1alpha1 "github.com/forbearing/horus-operator/apis/networking/v1alpha1"
+	"github.com/go-logr/logr"
 )
 
 // TrafficReconciler reconciles a Traffic object
 type TrafficReconciler struct {
 	client.Client
+	Log    logr.Logger
 	Scheme *runtime.Scheme
 }
 

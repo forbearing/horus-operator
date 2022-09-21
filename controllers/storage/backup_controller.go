@@ -67,6 +67,8 @@ func (r *BackupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	//logger := logrus.WithFields(logrus.Fields{
 	//    "Component": defaultOperatorName,
 	//})
+	reqLogger := r.Log.WithValues("Namespace", req.Namespace, "Name", req.Name)
+	reqLogger.Info("Reconciling backup controller")
 
 	namespace := os.Getenv("NAMESPACE")
 	if len(namespace) == 0 {
