@@ -8,4 +8,7 @@ const (
 	StorageRestServer = "restServer"
 	StorageSFTP       = "sftp"
 	StorageRClone     = "rclone"
+
+	VolumeHostPath = "hostPath"
+	VolumeLocal    = "local"
 )
