@@ -18,11 +18,11 @@ package storage
 
 import (
 	"context"
-	"os"
 	"time"
 
 	storagev1alpha1 "github.com/forbearing/horus-operator/apis/storage/v1alpha1"
 	"github.com/forbearing/horus-operator/pkg/backup"
+	"github.com/forbearing/horus-operator/pkg/types"
 	"github.com/go-logr/logr"
 	"github.com/sirupsen/logrus"
 	batchv1 "k8s.io/api/batch/v1"
@@ -31,19 +31,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-)
-
-const (
-	defaultFinalizerName     = "backup.hybfkuf.io/finalizer"
-	defaultOperatorNamespace = "horus-operator"
-	defaultOperatorName      = "horus-operator"
-	defaultTimeout           = time.Minute * 10
-
-	createdTimeAnnotation   = "storage.hybfkuf.io/createdAt"
-	updatedTimeAnnotation   = "storage.hybfkuf.io/updatedAt"
-	restartedTimeAnnotation = "storage.hybfkuf.io/restartedAt"
 )
 
 // BackupReconciler reconciles a Backup object
@@ -76,10 +64,6 @@ func (r *BackupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	reqLogger := r.Log.WithValues("Namespace", req.Namespace, "Name", req.Name)
 	reqLogger.Info("Reconciling backup controller")
 
-	namespace := os.Getenv("NAMESPACE")
-	if len(namespace) == 0 {
-		namespace = defaultOperatorNamespace
-	}
 	// 1.get a "Backup" resource
 	backupObj := &storagev1alpha1.Backup{}
 	err := r.Get(ctx, req.NamespacedName, backupObj)
@@ -90,16 +74,11 @@ func (r *BackupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	// Set the default tiemout for backup progress.
 	timeout := backupObj.Spec.Timeout.Duration
 	if timeout == time.Duration(0) {
-		timeout = defaultTimeout
+		timeout = types.DefaultBackupTimeout
 	}
 	backupCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
-	//if err := tools.Backup(backupCtx, namespace, backupObj); err != nil {
-	gvk, err := apiutil.GVKForObject(backupObj, r.Scheme)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
-	if err := backup.Backup(backupCtx, gvk.Kind, namespace, req.Namespace, req.Name); err != nil {
+	if err := backup.Backup(backupCtx, types.KindBackup, req.Namespace, req.Name); err != nil {
 		return ctrl.Result{}, err
 	}
 
@@ -207,7 +186,7 @@ func (r *BackupReconciler) cronjobForBackup(b *storagev1alpha1.Backup) *batchv1.
 // finalizer when delete Backup Object
 func (r *BackupReconciler) handleFinalizer(ctx context.Context, backupObj *storagev1alpha1.Backup) error {
 	// name of our custom finalizer
-	myFinalizerName := defaultFinalizerName
+	myFinalizerName := types.DefaultBackupFinalizerName
 	// examine DeletionTimestamp to determine if object is under deletion
 	if backupObj.ObjectMeta.DeletionTimestamp.IsZero() {
 		// The object is not being deleted, so if it does not have our finalizer,

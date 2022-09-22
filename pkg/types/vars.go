@@ -1,6 +1,29 @@
 package types
 
-import "fmt"
+import (
+	"fmt"
+	"time"
+)
+
+var (
+	DefaultOperatorName      = "horus-operator"
+	DefaultOperatorNamespace = "horus-operator"
+
+	DefaultBackupFinalizerName    = "backup.storage.hybfkuf.io/finalizer"
+	DefaultRestoreFinalizerName   = "restore.storage.hybfkuf.io/finalizer"
+	DefaultCloneFinalizerName     = "clone.storage.hybfkuf.io/finalizer"
+	DefaultMigrationFinalizerName = "migration.storage.hybfkuf.io/finalizer"
+	DefaultTrafficFinalizerName   = "traffic.networking.hybfkuf.io/finalizer"
+
+	DefaultBackupTimeout    = time.Hour
+	DefaultRestoreTimeout   = time.Hour
+	DefaultCloneTimeout     = time.Hour
+	DefaultMigrationTimeout = time.Hour
+
+	AnnotationCreatedTime   = "storage.hybfkuf.io/createdAt"
+	AnnotationUpdatedTime   = "storage.hybfkuf.io/updatedAt"
+	AnnotationRestartedTime = "storage.hybfkuf.io/restartedAt"
+)
 
 var (
 	Backup2NFSDeployName    = "backup-to-nfs"
