@@ -3,6 +3,7 @@ package horusctl
 import (
 	pkgargs "github.com/forbearing/horus-operator/pkg/args"
 	"github.com/forbearing/horus-operator/pkg/logger"
+	"github.com/forbearing/horus-operator/pkg/types"
 	"github.com/spf13/cobra"
 )
 
@@ -11,8 +12,6 @@ var (
 	logLevel  string
 	logFormat string
 	namespace string
-
-	defaultNamespace = "default"
 )
 
 var rootCmd = &cobra.Command{
@@ -29,7 +28,7 @@ var rootCmd = &cobra.Command{
 func init() {
 	rootCmd.PersistentFlags().StringVar(&logLevel, "log-level", "info", "set log level, ('info' or 'debug')")
 	rootCmd.PersistentFlags().StringVar(&logFormat, "log-format", "text", "log encoding ('text' or 'json')")
-	rootCmd.PersistentFlags().StringVarP(&namespace, "namespace", "n", defaultNamespace, "the namespace of 'Backup|Restore|Clone|Migration|Traffic' CustomResource")
+	rootCmd.PersistentFlags().StringVarP(&namespace, "namespace", "n", types.DefaultNamespace, "the namespace of 'Backup|Restore|Clone|Migration|Traffic' CustomResource")
 }
 
 func Execute() {

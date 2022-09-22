@@ -6,6 +6,7 @@ import (
 )
 
 var (
+	DefaultNamespace         = "default"
 	DefaultOperatorName      = "horus-operator"
 	DefaultOperatorNamespace = "horus-operator"
 	DefaultClusterName       = "kubernetes"
