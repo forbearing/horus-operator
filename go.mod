@@ -4,12 +4,13 @@ go 1.18
 
 require (
 	github.com/forbearing/k8s v0.11.6
-	github.com/forbearing/restic v1.4.1
+	github.com/forbearing/restic v1.4.3
 	github.com/go-logr/logr v1.2.3
 	github.com/minio/minio-go/v7 v7.0.36
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.19.0
 	github.com/sirupsen/logrus v1.9.0
+	github.com/spf13/cobra v1.4.0
 	go.uber.org/zap v1.21.0
 	gorm.io/gorm v1.23.8
 	k8s.io/api v0.25.0
@@ -46,6 +47,7 @@ require (
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/imdario/mergo v0.3.13 // indirect
+	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.4 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
