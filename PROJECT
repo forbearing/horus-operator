@@ -17,6 +17,10 @@ resources:
   kind: Backup
   path: github.com/forbearing/horus-operator/apis/storage/v1alpha1
   version: v1alpha1
+  webhooks:
+    defaulting: true
+    validation: true
+    webhookVersion: v1
 - api:
     crdVersion: v1
     namespaced: true
@@ -26,6 +30,10 @@ resources:
   kind: Restore
   path: github.com/forbearing/horus-operator/apis/storage/v1alpha1
   version: v1alpha1
+  webhooks:
+    defaulting: true
+    validation: true
+    webhookVersion: v1
 - api:
     crdVersion: v1
     namespaced: true
@@ -35,6 +43,10 @@ resources:
   kind: Traffic
   path: github.com/forbearing/horus-operator/apis/networking/v1alpha1
   version: v1alpha1
+  webhooks:
+    defaulting: true
+    validation: true
+    webhookVersion: v1
 - api:
     crdVersion: v1
     namespaced: true
@@ -44,6 +56,10 @@ resources:
   kind: Clone
   path: github.com/forbearing/horus-operator/apis/storage/v1alpha1
   version: v1alpha1
+  webhooks:
+    defaulting: true
+    validation: true
+    webhookVersion: v1
 - api:
     crdVersion: v1
     namespaced: true
@@ -53,4 +69,8 @@ resources:
   kind: Migration
   path: github.com/forbearing/horus-operator/apis/storage/v1alpha1
   version: v1alpha1
+  webhooks:
+    defaulting: true
+    validation: true
+    webhookVersion: v1
 version: "3"
