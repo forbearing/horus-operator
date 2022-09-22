@@ -6,7 +6,6 @@ import (
 
 	"github.com/forbearing/horus-operator/pkg/types"
 	"github.com/forbearing/horus-operator/pkg/util"
-	"github.com/forbearing/k8s/deployment"
 	"github.com/forbearing/k8s/pod"
 	"github.com/forbearing/restic"
 	"github.com/sirupsen/logrus"
@@ -16,37 +15,36 @@ import (
 var (
 	ctx        = context.TODO()
 	podHandler = pod.NewOrDie(ctx, "", "")
-	depHandler = deployment.NewOrDie(ctx, "", "")
 )
 
 func Snapshot(storage string, cluster []string, tags []string) {
-	podHandler.ResetNamespace(util.GetOperatorNamespace())
-
 	var (
 		err     error
 		execPod *corev1.Pod
 		podsObj []*corev1.Pod
 	)
 
+	operatorNamespace := util.GetOperatorNamespace()
+	podHandler.ResetNamespace(operatorNamespace)
 	switch storage {
 	case types.StorageNFS:
 		if podsObj, err = podHandler.ListByLabel(types.Backup2NFSDeployLabel); err != nil {
-			logrus.Error("pod handler list pods by labels error: %s", err.Error())
+			logrus.Error("pod handler list pods in namespace/%s by labels error: %s", operatorNamespace, err.Error())
 			return
 		}
 		execPod = filterRunningPod(podsObj)
 		if execPod == nil {
-			logrus.Errorf("not found running pod for %s", types.Backup2NFSDeployName)
+			logrus.Errorf(`not found running pod in namespace/%s with label "%s"`, operatorNamespace, types.Backup2NFSDeployLabel)
 			return
 		}
 	case types.StorageMinIO:
 		if podsObj, err = podHandler.ListByLabel(types.Backup2MinioDeployLabel); err != nil {
-			logrus.Error("pod handler list pods by labels error: %s", err.Error())
+			logrus.Error("pod handler list pods in namespace/%s by labels error: %s", operatorNamespace, err.Error())
 			return
 		}
 		execPod = filterRunningPod(podsObj)
 		if execPod == nil {
-			logrus.Errorf("not found running pod for %s", types.Backup2MinioDeployName)
+			logrus.Errorf(`not found running pod in namespace/%s with label "%s"`, operatorNamespace, types.Backup2MinioDeployLabel)
 			return
 		}
 	default:
@@ -59,7 +57,7 @@ func Snapshot(storage string, cluster []string, tags []string) {
 
 	logrus.Debugf(`execute command "%s" within "pod/%s"`, cmdSnapshot, execPod.GetName())
 	if err := podHandler.Execute(execPod.GetName(), "", strings.Split(cmdSnapshot, " ")); err != nil {
-		logrus.Errorf(`pod handler execute command "%s" wthin pod/"%s" error`, cmdSnapshot, execPod.GetName())
+		logrus.Errorf(`pod handler execute command "%s" wthin pod/"%s" failed`, cmdSnapshot, execPod.GetName())
 		return
 	}
 }
