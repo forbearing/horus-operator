@@ -34,7 +34,7 @@ func Snapshot(storage string, cluster []string, tags []string) {
 			logrus.Error("pod handler list pods by labels error: %s", err.Error())
 			return
 		}
-		execPod = filteRunningPod(podsObj)
+		execPod = filterRunningPod(podsObj)
 		if execPod == nil {
 			logrus.Errorf("not found running pod for %s", types.Backup2NFSDeployName)
 			return
@@ -44,7 +44,7 @@ func Snapshot(storage string, cluster []string, tags []string) {
 			logrus.Error("pod handler list pods by labels error: %s", err.Error())
 			return
 		}
-		execPod = filteRunningPod(podsObj)
+		execPod = filterRunningPod(podsObj)
 		if execPod == nil {
 			logrus.Errorf("not found running pod for %s", types.Backup2MinioDeployName)
 			return
