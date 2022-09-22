@@ -22,7 +22,7 @@ import (
 	"time"
 
 	storagev1alpha1 "github.com/forbearing/horus-operator/apis/storage/v1alpha1"
-	"github.com/forbearing/horus-operator/pkg/tools"
+	"github.com/forbearing/horus-operator/pkg/backup"
 	"github.com/go-logr/logr"
 	"github.com/sirupsen/logrus"
 	batchv1 "k8s.io/api/batch/v1"
@@ -31,6 +31,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
@@ -39,6 +40,10 @@ const (
 	defaultOperatorNamespace = "horus-operator"
 	defaultOperatorName      = "horus-operator"
 	defaultTimeout           = time.Minute * 10
+
+	createdTimeAnnotation   = "storage.hybfkuf.io/createdAt"
+	updatedTimeAnnotation   = "storage.hybfkuf.io/updatedAt"
+	restartedTimeAnnotation = "storage.hybfkuf.io/restartedAt"
 )
 
 // BackupReconciler reconciles a Backup object
@@ -67,6 +72,7 @@ func (r *BackupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	//logger := logrus.WithFields(logrus.Fields{
 	//    "Component": defaultOperatorName,
 	//})
+
 	reqLogger := r.Log.WithValues("Namespace", req.Namespace, "Name", req.Name)
 	reqLogger.Info("Reconciling backup controller")
 
@@ -74,7 +80,6 @@ func (r *BackupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	if len(namespace) == 0 {
 		namespace = defaultOperatorNamespace
 	}
-
 	// 1.get a "Backup" resource
 	backupObj := &storagev1alpha1.Backup{}
 	err := r.Get(ctx, req.NamespacedName, backupObj)
@@ -89,11 +94,14 @@ func (r *BackupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	}
 	backupCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
-	if err := tools.BackupToNFS(backupCtx, namespace,
-		backupObj, backupObj.Spec.BackupTo.NFS); err != nil {
+	//if err := tools.Backup(backupCtx, namespace, backupObj); err != nil {
+	gvk, err := apiutil.GVKForObject(backupObj, r.Scheme)
+	if err != nil {
 		return ctrl.Result{}, err
 	}
-	// =====
+	if err := backup.Backup(backupCtx, gvk.Kind, namespace, req.Namespace, req.Name); err != nil {
+		return ctrl.Result{}, err
+	}
 
 	//// 2.get cronjob resource.
 	//cronjob := &batchv1.CronJob{}
@@ -111,6 +119,20 @@ func (r *BackupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	//        // get cronjob failed and not "NotFound" error, return with error.
 	//        return ctrl.Result{}, err
 	//    }
+	//}
+
+	// ===================================================
+	// ===================================================
+	// ===================================================
+	// ===================================================
+
+	//logger := r.Log.WithValues("Namespace", req.Namespace, "Name", req.Name)
+	//logger.Info("Start Reconciler Backup Object.")
+
+	//// 1.Get Backup Object and ignore "NotFound" error.
+	//backupObj := &storagev1alpha1.Backup{}
+	//if err := r.Get(ctx, req.NamespacedName, backupObj); err != nil {
+	//    return ctrl.Result{}, client.IgnoreNotFound(err)
 	//}
 
 	return ctrl.Result{}, nil
