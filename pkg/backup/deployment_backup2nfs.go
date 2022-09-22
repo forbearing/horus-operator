@@ -6,14 +6,17 @@ import (
 
 	storagev1alpha1 "github.com/forbearing/horus-operator/apis/storage/v1alpha1"
 	"github.com/forbearing/horus-operator/pkg/template"
+	"github.com/forbearing/horus-operator/pkg/types"
+	"github.com/forbearing/horus-operator/pkg/util"
 	corev1 "k8s.io/api/core/v1"
 )
 
 // createBackup2nfsDeployment
-func createBackup2nfsDeployment(operatorNamespace string, backupObj *storagev1alpha1.Backup, meta pvdataMeta) (*corev1.Pod, time.Duration, error) {
+func createBackup2nfsDeployment(backupObj *storagev1alpha1.Backup, meta pvdataMeta) (*corev1.Pod, time.Duration, error) {
 	beginTime := time.Now()
 
 	deployName := backup2nfsName + "-" + meta.nodeName
+	operatorNamespace := util.GetOperatorNamespace()
 	backup2nfsBytes := []byte(fmt.Sprintf(
 		// the deployment template
 		template.Backup2nfsDeploymentTemplate,
@@ -23,7 +26,7 @@ func createBackup2nfsDeployment(operatorNamespace string, backupObj *storagev1al
 		deployName, operatorNamespace,
 		// deployment.spec.template.metadata.annotations
 		// pod template annotations
-		updatedTimeAnnotation, time.Now().Format(time.RFC3339),
+		types.AnnotationUpdatedTime, time.Now().Format(time.RFC3339),
 		// deployment.spec.template.spec.nodeName
 		// deployment.spec.template.spec.containers.image
 		// node name, deployment image

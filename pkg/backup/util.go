@@ -8,6 +8,7 @@ import (
 	"time"
 
 	storagev1alpha1 "github.com/forbearing/horus-operator/apis/storage/v1alpha1"
+	"github.com/forbearing/horus-operator/pkg/types"
 	"github.com/forbearing/k8s/deployment"
 	"github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
@@ -143,7 +144,7 @@ func setPodTemplateAnnotations(deploy *appsv1.Deployment) *appsv1.Deployment {
 	if podAnnotations == nil {
 		podAnnotations = make(map[string]string)
 	}
-	podAnnotations[restartedTimeAnnotation] = time.Now().Format(time.RFC3339)
+	podAnnotations[types.AnnotationRestartedTime] = time.Now().Format(time.RFC3339)
 	deploy.Spec.Template.Annotations = podAnnotations
 	return deploy
 }

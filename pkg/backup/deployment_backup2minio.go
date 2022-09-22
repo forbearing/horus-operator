@@ -8,11 +8,13 @@ import (
 	storagev1alpha1 "github.com/forbearing/horus-operator/apis/storage/v1alpha1"
 	"github.com/forbearing/horus-operator/pkg/minio"
 	"github.com/forbearing/horus-operator/pkg/template"
+	"github.com/forbearing/horus-operator/pkg/types"
+	"github.com/forbearing/horus-operator/pkg/util"
 	corev1 "k8s.io/api/core/v1"
 )
 
 // createBackup2minioDepoyment backup persistentvolume data to minio object storage
-func createBackup2minioDepoyment(operatorNamespace string, backupObj *storagev1alpha1.Backup, meta pvdataMeta) (*corev1.Pod, time.Duration, error) {
+func createBackup2minioDepoyment(backupObj *storagev1alpha1.Backup, meta pvdataMeta) (*corev1.Pod, time.Duration, error) {
 	beginTime := time.Now()
 
 	scheme := backupObj.Spec.BackupTo.MinIO.Endpoint.Scheme
@@ -22,6 +24,7 @@ func createBackup2minioDepoyment(operatorNamespace string, backupObj *storagev1a
 	folder := backupObj.Spec.BackupTo.MinIO.Folder
 	credentialName := backupObj.Spec.BackupTo.MinIO.CredentialName
 
+	operatorNamespace := util.GetOperatorNamespace()
 	secHandler.ResetNamespace(operatorNamespace)
 	secObj, err := secHandler.Get(backupObj.Spec.BackupTo.MinIO.CredentialName)
 	if err != nil {
@@ -51,7 +54,7 @@ func createBackup2minioDepoyment(operatorNamespace string, backupObj *storagev1a
 		deployName, operatorNamespace,
 		// deployment.spec.template.metadata.annotations
 		// pod template annotations
-		updatedTimeAnnotation, time.Now().Format(time.RFC3339),
+		types.AnnotationUpdatedTime, time.Now().Format(time.RFC3339),
 		// deployment.spec.template.spec.nodeName
 		// deployment.spec.template.spec.containers.image
 		// node name, deployment image

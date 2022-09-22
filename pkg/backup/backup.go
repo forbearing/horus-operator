@@ -11,6 +11,7 @@ import (
 	"time"
 
 	storagev1alpha1 "github.com/forbearing/horus-operator/apis/storage/v1alpha1"
+	"github.com/forbearing/horus-operator/pkg/types"
 	"github.com/forbearing/horus-operator/pkg/util"
 	"github.com/forbearing/k8s/daemonset"
 	"github.com/forbearing/k8s/deployment"
@@ -59,21 +60,7 @@ type pvdataMeta struct {
 	pvname       string
 }
 
-type Storage string
-
 const (
-	StorageNFS        Storage = "nfs"
-	StorageMinIO      Storage = "minio"
-	StorageS3         Storage = "s3"
-	StorageCephFS     Storage = "cephfs"
-	StorageRestServer Storage = "restServer"
-	StorageSFTP       Storage = "sftp"
-	StorageRclone     Storage = "rclone"
-)
-
-const (
-	defaultClusterName = "kubernetes"
-
 	resticRepo        = "/restic-repo"
 	resticPasswd      = "mypass"
 	mountHostRootPath = "/host-root"
@@ -90,13 +77,6 @@ const (
 	backup2minioImage    = backup2nfsImage
 	secretMinioAccessKey = "MINIO_ACCESS_KEY"
 	secretMinioSecretKey = "MINIO_SECRET_KEY"
-
-	createdTimeAnnotation   = "storage.hybfkuf.io/createdAt"
-	updatedTimeAnnotation   = "storage.hybfkuf.io/updatedAt"
-	restartedTimeAnnotation = "storage.hybfkuf.io/restartedAt"
-
-	volumeHostPath = "hostPath"
-	volumeLocal    = "local"
 )
 
 var (
@@ -346,59 +326,29 @@ func doBackup(operatorNamespace string, backupObj *storagev1alpha1.Backup, pvcpv
 	for pvc, meta := range pvcpvMap {
 		for _, remoteStorage := range parseBackupTo(backupObj) {
 			var err error
-			var execPod *corev1.Pod
 			var costedTime time.Duration
 			switch remoteStorage {
-			case string(StorageNFS):
-				// create deployment/backuptonfs to backup every pvc volume data.
-				// there are three condition should meet.
-				//   1.deployment mount the persistentvolumeclaim we should backup
-				//   2.deployment mount nfs storage as persistentvolumeclaim
-				//   3.execute restic commmand to backup persistentvolumeclaim data
-				//     - "restic list keys" check whether resitc repository exist
-				//     - "restic init" initial a resitc repository when repository not exist.
-				//     - "restic backup" backup the persistentvolume data to nfs storage.
-				if execPod, costedTime, err = createBackup2nfsDeployment(operatorNamespace, backupObj, meta); err != nil {
+			case types.StorageNFS:
+				if costedTime, err = Backup2NFS(backupObj, pvc, meta); err != nil {
+					logger.WithField("Cost", costedTime.String()).Errorf("Backup to NFS failed: %s", err.Error())
 					return time.Now().Sub(beginTime), err
 				}
-				logger.WithFields(logrus.Fields{"Cost": costedTime.String(), "Storage": "NFS"}).
-					Debugf("create deployment/%s", backup2nfsName+"-"+meta.nodeName)
-				// execute restic command to backup persistentvolume data to remote storage within the pod.
-				if costedTime, err = backupByRestic(operatorNamespace, backupObj, execPod, pvc, meta, StorageNFS); err != nil {
+			case types.StorageMinIO:
+				if costedTime, err = Backup2MinIO(backupObj, pvc, meta); err != nil {
+					logger.WithField("Cost", costedTime.String()).Errorf("Backup to MinIO failed: %s", err.Error())
 					return time.Now().Sub(beginTime), err
 				}
-				logger.WithFields(logrus.Fields{"Cost": costedTime.String(), "Storage": "NFS"}).
-					Infof("Successfully backup pvc/%s", pvc)
-			case string(StorageMinIO):
-				// create deployment/backuptominio to backup every pvc volume data
-				// there are two condition should meet.
-				//   1.deployment mount the persistentvolumeclaim we should backup
-				//   2.execute restic commmand to backup persistentvolumeclaim data
-				//     - "restic list keys" check whether resitc repository exist
-				//     - "restic init" initial a resitc repository when repository not exist.
-				//     - "restic backup" backup the persistentvolume data to nfs storage.
-				if execPod, costedTime, err = createBackup2minioDepoyment(operatorNamespace, backupObj, meta); err != nil {
-					return time.Now().Sub(beginTime), err
-				}
-				logger.WithFields(logrus.Fields{"Cost": costedTime.String(), "Storage": "MinIO"}).
-					Debugf("create deployment/%s", backup2minioName+"-"+meta.nodeName)
-				// execute restic command to backup persistentvolume data to remote storage within the pod.
-				if costedTime, err = backupByRestic(operatorNamespace, backupObj, execPod, pvc, meta, StorageMinIO); err != nil {
-					return time.Now().Sub(beginTime), err
-				}
-				logger.WithFields(logrus.Fields{"Cost": costedTime.String(), "Storage": "MinIO"}).
-					Infof("Successfully backup pvc/%s", pvc)
 			}
 		}
 	}
-
 	return time.Now().Sub(beginTime), nil
 }
 
 // backupByRestic
 // clusterName as the argument of flag --host.
-func backupByRestic(operatorNamespace string, backupObj *storagev1alpha1.Backup, execPod *corev1.Pod, pvc string, meta pvdataMeta, storage Storage) (time.Duration, error) {
+func backupByRestic(backupObj *storagev1alpha1.Backup, execPod *corev1.Pod, pvc string, meta pvdataMeta, storage string) (time.Duration, error) {
 	beginTime := time.Now()
+	operatorNamespace := util.GetOperatorNamespace()
 	podHandler.ResetNamespace(operatorNamespace)
 	logger := logrus.WithFields(logrus.Fields{
 		"Component": "restic",
@@ -415,14 +365,14 @@ func backupByRestic(operatorNamespace string, backupObj *storagev1alpha1.Backup,
 	}
 	clusterName := backupObj.Spec.Cluster
 	if len(clusterName) == 0 {
-		clusterName = defaultClusterName
+		clusterName = types.DefaultClusterName
 	}
 
 	pvpath := filepath.Join(mountHostRootPath, meta.pvdir, meta.pvname)
 	switch meta.volumeSource {
 	// if persistentvolume volume source is "hostPath" or "local", it's mean that
 	// the meta.pvdir is pvpath not pvdir, and pvpath = pvdir + pvname.
-	case volumeHostPath, volumeLocal:
+	case types.VolumeHostPath, types.VolumeLocal:
 		pvpath = filepath.Join(mountHostRootPath, meta.pvdir)
 	}
 	logger.Debugf("the path of persistentvolume data in k8s node: %s", pvpath)

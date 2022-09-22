@@ -10,6 +10,7 @@ import (
 
 	storagev1alpha1 "github.com/forbearing/horus-operator/apis/storage/v1alpha1"
 	"github.com/forbearing/horus-operator/pkg/template"
+	"github.com/forbearing/horus-operator/pkg/types"
 	"github.com/sirupsen/logrus"
 )
 
@@ -31,7 +32,7 @@ func createFindpvdirDeployment(operatorNamespace string, backupObj *storagev1alp
 		deployName, operatorNamespace,
 		// deployment.spec.template.metadata.annotations
 		// pod template annotations
-		updatedTimeAnnotation, time.Now().Format(time.RFC3339),
+		types.AnnotationUpdatedTime, time.Now().Format(time.RFC3339),
 		// deployment.spec.template.spec.nodeName
 		// deployment.spec.template.spec.containers.image
 		// node name, deployment image
@@ -50,13 +51,13 @@ func createFindpvdirDeployment(operatorNamespace string, backupObj *storagev1alp
 	// the "hostPath" or "local" in k8s node path.
 	cmdFindpvdir := []string{"findpvdir", "--pod-uid", meta.podUID, "--storage-type", meta.volumeSource}
 	switch meta.volumeSource {
-	case volumeHostPath:
+	case types.VolumeHostPath:
 		pvObj, err := pvHandler.Get(meta.pvname)
 		if err != nil {
 			return "", time.Now().Sub(beginTime), fmt.Errorf("persistentvolume handler get persistentvolume error: %s", err.Error())
 		}
 		return pvObj.Spec.HostPath.Path, time.Now().Sub(beginTime), nil
-	case volumeLocal:
+	case types.VolumeLocal:
 		pvObj, err := pvHandler.Get(meta.pvname)
 		if err != nil {
 			return "", time.Now().Sub(beginTime), fmt.Errorf("persistentvolume handler get persistentvolume error: %s", err.Error())
