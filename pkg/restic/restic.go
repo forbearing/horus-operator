@@ -68,7 +68,11 @@ func Stats() {
 
 }
 
-func filteRunningPod(podsObj []*corev1.Pod) *corev1.Pod {
+// filterRunningPod
+func filterRunningPod(podsObj []*corev1.Pod) *corev1.Pod {
+	if podsObj == nil {
+		return nil
+	}
 	execPod := &corev1.Pod{}
 	for i := range podsObj {
 		execPod = podsObj[i]
