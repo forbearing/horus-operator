@@ -3,6 +3,7 @@ package util
 import (
 	"os"
 
+	"github.com/forbearing/horus-operator/pkg/types"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -13,9 +14,8 @@ func GetPodPVPath(p *corev1.Pod) []string {
 }
 
 const (
-	defaultOperatorNamespace = "horus-operator"
-	namespaceEnv             = "NAMESPACE"
-	namespaceFile            = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
+	namespaceEnv  = "NAMESPACE"
+	namespaceFile = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
 )
 
 // GetOperatorNamespace
@@ -30,5 +30,5 @@ func GetOperatorNamespace() string {
 			return string(data)
 		}
 	}
-	return defaultOperatorNamespace
+	return types.DefaultOperatorNamespace
 }
