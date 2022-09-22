@@ -1,0 +1,214 @@
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  creationTimestamp: null
+  name: mutating-webhook-configuration
+webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /mutate-networking-hybfkuf-io-v1alpha1-traffic
+  failurePolicy: Fail
+  name: mtraffic.kb.io
+  rules:
+  - apiGroups:
+    - networking.hybfkuf.io
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - traffics
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /mutate-storage-hybfkuf-io-v1alpha1-backup
+  failurePolicy: Fail
+  name: mbackup.kb.io
+  rules:
+  - apiGroups:
+    - storage.hybfkuf.io
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - backups
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /mutate-storage-hybfkuf-io-v1alpha1-clone
+  failurePolicy: Fail
+  name: mclone.kb.io
+  rules:
+  - apiGroups:
+    - storage.hybfkuf.io
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - clones
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /mutate-storage-hybfkuf-io-v1alpha1-migration
+  failurePolicy: Fail
+  name: mmigration.kb.io
+  rules:
+  - apiGroups:
+    - storage.hybfkuf.io
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - migrations
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /mutate-storage-hybfkuf-io-v1alpha1-restore
+  failurePolicy: Fail
+  name: mrestore.kb.io
+  rules:
+  - apiGroups:
+    - storage.hybfkuf.io
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - restores
+  sideEffects: None
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  creationTimestamp: null
+  name: validating-webhook-configuration
+webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-networking-hybfkuf-io-v1alpha1-traffic
+  failurePolicy: Fail
+  name: vtraffic.kb.io
+  rules:
+  - apiGroups:
+    - networking.hybfkuf.io
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - traffics
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-storage-hybfkuf-io-v1alpha1-backup
+  failurePolicy: Fail
+  name: vbackup.kb.io
+  rules:
+  - apiGroups:
+    - storage.hybfkuf.io
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - backups
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-storage-hybfkuf-io-v1alpha1-clone
+  failurePolicy: Fail
+  name: vclone.kb.io
+  rules:
+  - apiGroups:
+    - storage.hybfkuf.io
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - clones
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-storage-hybfkuf-io-v1alpha1-migration
+  failurePolicy: Fail
+  name: vmigration.kb.io
+  rules:
+  - apiGroups:
+    - storage.hybfkuf.io
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - migrations
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-storage-hybfkuf-io-v1alpha1-restore
+  failurePolicy: Fail
+  name: vrestore.kb.io
+  rules:
+  - apiGroups:
+    - storage.hybfkuf.io
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - restores
+  sideEffects: None
