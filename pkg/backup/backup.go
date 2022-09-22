@@ -11,6 +11,7 @@ import (
 	"time"
 
 	storagev1alpha1 "github.com/forbearing/horus-operator/apis/storage/v1alpha1"
+	"github.com/forbearing/horus-operator/pkg/util"
 	"github.com/forbearing/k8s/daemonset"
 	"github.com/forbearing/k8s/deployment"
 	"github.com/forbearing/k8s/dynamic"
@@ -116,8 +117,9 @@ var (
 )
 
 //func Backup(ctx context.Context, operatorNamespace string, backupObj *storagev1alpha1.Backup) error {
-func Backup(ctx context.Context, kind string, operatorNamespace string, backupObjNS, backupObjName string) error {
+func Backup(ctx context.Context, kind string, backupObjNS, backupObjName string) error {
 	beginTime := time.Now()
+	operatorNamespace := util.GetOperatorNamespace()
 	dynHandler.ResetNamespace(backupObjNS)
 	logger := logrus.WithFields(logrus.Fields{
 		"Component": "Backup",
