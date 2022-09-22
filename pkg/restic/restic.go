@@ -29,7 +29,7 @@ func Snapshot(storage string, cluster []string, tags []string) {
 	switch storage {
 	case types.StorageNFS:
 		if podsObj, err = podHandler.ListByLabel(types.Backup2NFSDeployLabel); err != nil {
-			logrus.Error("pod handler list pods in namespace/%s by labels error: %s", operatorNamespace, err.Error())
+			logrus.Errorf("pod handler list pods in namespace/%s by labels error: %s", operatorNamespace, err.Error())
 			return
 		}
 		execPod = filterRunningPod(podsObj)
@@ -39,7 +39,7 @@ func Snapshot(storage string, cluster []string, tags []string) {
 		}
 	case types.StorageMinIO:
 		if podsObj, err = podHandler.ListByLabel(types.Backup2MinioDeployLabel); err != nil {
-			logrus.Error("pod handler list pods in namespace/%s by labels error: %s", operatorNamespace, err.Error())
+			logrus.Errorf("pod handler list pods in namespace/%s by labels error: %s", operatorNamespace, err.Error())
 			return
 		}
 		execPod = filterRunningPod(podsObj)
