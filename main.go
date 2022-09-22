@@ -18,46 +18,45 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"os"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
-	"go.uber.org/zap/zapcore"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	ctrlzap "sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	networkingv1alpha1 "github.com/forbearing/horus-operator/apis/networking/v1alpha1"
 	storagev1alpha1 "github.com/forbearing/horus-operator/apis/storage/v1alpha1"
 	networkingcontrollers "github.com/forbearing/horus-operator/controllers/networking"
 	storagecontrollers "github.com/forbearing/horus-operator/controllers/storage"
+	"github.com/forbearing/horus-operator/pkg/types"
+	"github.com/forbearing/horus-operator/pkg/version"
 	//+kubebuilder:scaffold:imports
 )
 
 var (
 	GroupStorage    = storagev1alpha1.GroupVersion.Group
 	GroupNetworking = networkingv1alpha1.GroupVersion.Group
-	KindBackup      = "Backup"
-	KindRestore     = "Restore"
-	KindClone       = "Clone"
-	KindMigration   = "Migration"
-	KindTraffic     = "Traffic"
 )
 
 var (
 	scheme   = runtime.NewScheme()
 	setupLog = ctrl.Log.WithName("setup")
 	//managerLog   = logr.New(log.NewDelegatingLogSink(log.NullLogSink{})).WithValues("operator", "horus-operator") // manager logger remove all key/value.
-	backupLog    = ctrl.Log.WithValues("Group", GroupStorage, "Kind", KindBackup)
-	restoreLog   = ctrl.Log.WithValues("Group", GroupStorage, "Kind", KindRestore)
-	cloneLog     = ctrl.Log.WithValues("Group", GroupStorage, "Kind", KindClone)
-	migrationLog = ctrl.Log.WithValues("Group", GroupStorage, "Kind", KindMigration)
-	trafficLog   = ctrl.Log.WithValues("Group", GroupNetworking, "Kind", KindTraffic)
+	backupLog    = ctrl.Log.WithValues("Group", GroupStorage, "Kind", types.KindBackup)
+	restoreLog   = ctrl.Log.WithValues("Group", GroupStorage, "Kind", types.KindRestore)
+	cloneLog     = ctrl.Log.WithValues("Group", GroupStorage, "Kind", types.KindClone)
+	migrationLog = ctrl.Log.WithValues("Group", GroupStorage, "Kind", types.KindMigration)
+	trafficLog   = ctrl.Log.WithValues("Group", GroupNetworking, "Kind", types.KindTraffic)
 )
 
 func init() {
@@ -81,21 +80,23 @@ func main() {
 	var logLevel int
 	var printVersion, pprofActive, webhookEnabled bool
 	flag.StringVar(&logEncoder, "log-encoder", "json", "log encoding ('json' or 'console')")
-	flag.IntVar(&logLevel, "log-level", int(zapcore.InfoLevel), "set log level")
+	flag.IntVar(&logLevel, "log-level", int(zapcore.InfoLevel), "set log level, higher levels are more important")
 	flag.BoolVar(&printVersion, "version", false, "print version and exist")
 	flag.BoolVar(&pprofActive, "pprof", false, "enable pprof endpoint")
 	flag.BoolVar(&webhookEnabled, "enable-webhook", false, "enable CRD conversion webhook")
-
-	opts := zap.Options{
-		Development: true, // for test or deployment only, set to true here.
-		//TimeEncoder: zapcore.RFC3339NanoTimeEncoder,
-		TimeEncoder: zapcore.RFC3339TimeEncoder,
-	}
-	opts.BindFlags(flag.CommandLine)
-	// Parsing flags
 	flag.Parse()
 
-	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+	// Logging setup
+	if err := customSetupLogging(zapcore.Level(logLevel), logEncoder); err != nil {
+		setupLog.Error(err, "Unable to setup the logger")
+		os.Exit(1)
+	}
+	// Print version information
+	if printVersion {
+		version.PrintVersionWriter(os.Stdout, "text")
+		os.Exit(0)
+	}
+	version.PrintVersionLogs(setupLog)
 
 	// mgrOpts are the arguments for creating a new manager.
 	//
@@ -130,7 +131,7 @@ func main() {
 		Log:    backupLog,
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", KindBackup)
+		setupLog.Error(err, "unable to create controller", "controller", types.KindBackup)
 		os.Exit(1)
 	}
 	if err = (&storagecontrollers.RestoreReconciler{
@@ -138,7 +139,7 @@ func main() {
 		Log:    restoreLog,
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", KindRestore)
+		setupLog.Error(err, "unable to create controller", "controller", types.KindRestore)
 		os.Exit(1)
 	}
 	if err = (&storagecontrollers.CloneReconciler{
@@ -146,7 +147,7 @@ func main() {
 		Log:    cloneLog,
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", KindClone)
+		setupLog.Error(err, "unable to create controller", "controller", types.KindClone)
 		os.Exit(1)
 	}
 	if err = (&storagecontrollers.MigrationReconciler{
@@ -154,7 +155,7 @@ func main() {
 		Log:    migrationLog,
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", KindMigration)
+		setupLog.Error(err, "unable to create controller", "controller", types.KindMigration)
 		os.Exit(1)
 	}
 	if err = (&networkingcontrollers.TrafficReconciler{
@@ -162,10 +163,10 @@ func main() {
 		Log:    trafficLog,
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", KindTraffic)
+		setupLog.Error(err, "unable to create controller", "controller", types.KindTraffic)
 		os.Exit(1)
 	}
-	// enable dynamic admission webhooks
+	// Enable dynamic admission webhooks.
 	if webhookEnabled {
 		if err = (&networkingv1alpha1.Traffic{}).SetupWebhookWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create webhook", "webhook", "Traffic")
@@ -205,3 +206,30 @@ func main() {
 		os.Exit(1)
 	}
 }
+
+func customSetupLogging(logLevel zapcore.Level, logEncoder string) error {
+	encoderConfig := zap.NewProductionEncoderConfig()
+	encoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
+	encoderConfig.EncodeTime = zapcore.RFC3339TimeEncoder
+	//encoderConfig.EncodeTime = zapcore.RFC3339NanoTimeEncoder
+
+	var encoder zapcore.Encoder
+	switch logEncoder {
+	case "console":
+		encoder = zapcore.NewConsoleEncoder(encoderConfig)
+	case "json":
+		encoder = zapcore.NewJSONEncoder(encoderConfig)
+	default:
+		return fmt.Errorf("unknow log encoder: %s", logEncoder)
+	}
+	ctrl.SetLogger(ctrlzap.New(
+		ctrlzap.Encoder(encoder),
+		ctrlzap.Level(logLevel),
+		ctrlzap.StacktraceLevel(zapcore.PanicLevel)))
+	return nil
+}
+
+//func customSetupHealthChecks(mgr manager.Manager) {
+//}
+//func customSetupEndpoints(pprofActive bool, mgr manager.Manager) {
+//}
