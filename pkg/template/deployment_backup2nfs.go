@@ -18,10 +18,13 @@ spec:
       app.kubernetes.io/part-of: horus-operator
   template:
     metadata:
-      #annotations:
+      annotations:
       #  %s: %s
+        sidecar.istio.io/inject: "false"
       labels:
         app.kubernetes.io/name: backup-to-nfs
+        app.kubernetes.io/role: backup
+        app.kubernetes.io/backup-method: restic
         app.kubernetes.io/part-of: horus-operator
     spec:
       nodeName: "%s"
