@@ -4,10 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
-	"os"
-	"path/filepath"
-	"strings"
 	"time"
 
 	storagev1alpha1 "github.com/forbearing/horus-operator/apis/storage/v1alpha1"
@@ -22,7 +18,6 @@ import (
 	"github.com/forbearing/k8s/replicaset"
 	"github.com/forbearing/k8s/secret"
 	"github.com/forbearing/k8s/statefulset"
-	"github.com/forbearing/restic"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -96,10 +91,9 @@ var (
 	ResourceTypeError = errors.New("Backup.spec.backupFrom.resource field value must be pod, deployment, statefulset or daemonset")
 )
 
-//func Backup(ctx context.Context, operatorNamespace string, backupObj *storagev1alpha1.Backup) error {
-func Backup(ctx context.Context, kind string, backupObjNS, backupObjName string) error {
+// Do
+func Do(ctx context.Context, kind string, backupObjNS, backupObjName string) error {
 	beginTime := time.Now()
-	operatorNamespace := util.GetOperatorNamespace()
 	dynHandler.ResetNamespace(backupObjNS)
 	logger := logrus.WithFields(logrus.Fields{
 		"Component": "Backup",
@@ -132,7 +126,7 @@ func Backup(ctx context.Context, kind string, backupObjNS, backupObjName string)
 	})
 
 	// 1. prepare pvc and pv metadata
-	pvcpvMap, costedTime, err := getPvcpvMap(ctx, operatorNamespace, backupObj)
+	pvcpvMap, costedTime, err := getPvcpvMap(ctx, backupObj)
 	if err != nil {
 		logger.Error(err)
 		return nil
@@ -140,7 +134,7 @@ func Backup(ctx context.Context, kind string, backupObjNS, backupObjName string)
 	logger.WithField("Cost", costedTime.String()).Infof("Successfully prepare pvc and pv metadata")
 
 	// 2. Do backup
-	if costedTime, err = doBackup(operatorNamespace, backupObj, pvcpvMap); err != nil {
+	if costedTime, err = doBackup(backupObj, pvcpvMap); err != nil {
 		logger.Error(err)
 		return nil
 	}
@@ -151,7 +145,7 @@ func Backup(ctx context.Context, kind string, backupObjNS, backupObjName string)
 }
 
 // getPvcpvMap backup the k8s resource defined in Backup object to nfs storage.
-func getPvcpvMap(ctx context.Context, operatorNamespace string, backupObj *storagev1alpha1.Backup) (map[string]pvdataMeta, time.Duration, error) {
+func getPvcpvMap(ctx context.Context, backupObj *storagev1alpha1.Backup) (map[string]pvdataMeta, time.Duration, error) {
 	var (
 		err        error
 		podObjList []*corev1.Pod
@@ -288,7 +282,7 @@ func getPvcpvMap(ctx context.Context, operatorNamespace string, backupObj *stora
 		var pvdir string
 		for _, pvc := range pvcList {
 			meta := pvcpvMap[pvc]
-			if pvdir, costedTime, err = createFindpvdirDeployment(operatorNamespace, backupObj, meta); err != nil {
+			if pvdir, costedTime, err = createFindpvdirDeployment(backupObj, meta); err != nil {
 				return nil, time.Duration(0), fmt.Errorf("create deployment/%s error: %s", findpvdirName+"-"+meta.nodeName, err.Error())
 			}
 			logger.WithField("Cost", costedTime.String()).Infof("Found pvc/%s in pod/%s", pvc, podObj.GetName())
@@ -315,12 +309,14 @@ func getPvcpvMap(ctx context.Context, operatorNamespace string, backupObj *stora
 }
 
 // doBackup
-func doBackup(operatorNamespace string, backupObj *storagev1alpha1.Backup, pvcpvMap map[string]pvdataMeta) (time.Duration, error) {
+func doBackup(backupObj *storagev1alpha1.Backup, pvcpvMap map[string]pvdataMeta) (time.Duration, error) {
 	beginTime := time.Now()
+	operatorNamespace := util.GetOperatorNamespace()
 	podHandler.ResetNamespace(operatorNamespace)
 	logger := logrus.WithFields(logrus.Fields{
-		"Component": "backup",
-		"Tool":      "restic",
+		"Component":         "backup",
+		"Tool":              "restic",
+		"OperatorNamespace": operatorNamespace,
 	})
 
 	for pvc, meta := range pvcpvMap {
@@ -341,63 +337,5 @@ func doBackup(operatorNamespace string, backupObj *storagev1alpha1.Backup, pvcpv
 			}
 		}
 	}
-	return time.Now().Sub(beginTime), nil
-}
-
-// backupByRestic
-// clusterName as the argument of flag --host.
-func backupByRestic(backupObj *storagev1alpha1.Backup, execPod *corev1.Pod, pvc string, meta pvdataMeta, storage string) (time.Duration, error) {
-	beginTime := time.Now()
-	operatorNamespace := util.GetOperatorNamespace()
-	podHandler.ResetNamespace(operatorNamespace)
-	logger := logrus.WithFields(logrus.Fields{
-		"Component": "restic",
-		"Node":      meta.nodeName,
-	})
-
-	if len(meta.pvdir) == 0 {
-		logger.Debug("persistentvolume directory is empty, skip backup")
-		return time.Now().Sub(beginTime), nil
-	}
-	if len(meta.pvname) == 0 {
-		logger.Debug("persistentvolume name is empty, skip backup")
-		return time.Now().Sub(beginTime), nil
-	}
-	clusterName := backupObj.Spec.Cluster
-	if len(clusterName) == 0 {
-		clusterName = types.DefaultClusterName
-	}
-
-	pvpath := filepath.Join(mountHostRootPath, meta.pvdir, meta.pvname)
-	switch meta.volumeSource {
-	// if persistentvolume volume source is "hostPath" or "local", it's mean that
-	// the meta.pvdir is pvpath not pvdir, and pvpath = pvdir + pvname.
-	case types.VolumeHostPath, types.VolumeLocal:
-		pvpath = filepath.Join(mountHostRootPath, meta.pvdir)
-	}
-	logger.Debugf("the path of persistentvolume data in k8s node: %s", pvpath)
-	logger.Debugf("executing restic command to backup persistentvolume data within pod/%s", execPod.GetName())
-	res := restic.NewIgnoreNotFound(context.TODO(), &restic.GlobalFlags{NoCache: true})
-	tags := []string{string(backupObj.Spec.BackupFrom.Resource), backupObj.Namespace, backupObj.Spec.BackupFrom.Name, pvc}
-	cmdCheckRepo := res.Command(restic.List{}.SetArgs("keys")).String()
-	cmdInitRepo := res.Command(restic.Init{}).String()
-	cmdBackup := res.Command(restic.Backup{Tag: tags, Host: clusterName}.SetArgs(pvpath)).String()
-
-	// if `restic list keys` failed, it's means that the rstic repository not exist,
-	// we should execute `restic init` command to init restic repository.
-	logger.Debug(cmdCheckRepo)
-	if err := podHandler.ExecuteWithStream(execPod.GetName(), "", strings.Split(cmdCheckRepo, " "), os.Stdin, io.Discard, io.Discard); err != nil {
-		logger.Debug(cmdInitRepo)
-		// if `restic init` failed, the next backup task wil not be continue.
-		if err := podHandler.ExecuteWithStream(execPod.GetName(), "", strings.Split(cmdInitRepo, " "), os.Stdin, io.Discard, io.Discard); err != nil {
-			logger.Fatal("restic init failed")
-			return time.Now().Sub(beginTime), nil
-		}
-	}
-	logger.Debug(cmdBackup)
-	if err := podHandler.WithNamespace(operatorNamespace).ExecuteWithStream(execPod.GetName(), "", strings.Split(cmdBackup, " "), os.Stdin, io.Discard, io.Discard); err != nil {
-		logger.Errorf("restic backup pvc/%s failed, maybe the directory/file of %s do not exist in k8s node", pvc, pvpath)
-	}
-
 	return time.Now().Sub(beginTime), nil
 }

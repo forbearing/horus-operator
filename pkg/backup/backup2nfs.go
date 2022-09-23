@@ -34,7 +34,7 @@ func Backup2NFS(backupObj *storagev1alpha1.Backup, pvc string, meta pvdataMeta) 
 	logger.WithFields(logrus.Fields{"Cost": costedTime.String()}).Debugf("create deployment/%s", backup2nfsName+"-"+meta.nodeName)
 
 	// execute restic command to backup persistentvolume data to remote storage within the pod.
-	if costedTime, err = backupByRestic(backupObj, execPod, pvc, meta, types.StorageNFS); err != nil {
+	if costedTime, err = executeBackupCommand(backupObj, execPod, pvc, meta, types.StorageNFS); err != nil {
 		return time.Now().Sub(beginTime), err
 	}
 	logger.WithFields(logrus.Fields{"Cost": costedTime.String()}).Infof("Successfully backup pvc/%s", pvc)

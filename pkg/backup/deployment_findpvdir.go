@@ -3,7 +3,6 @@ package backup
 import (
 	"bytes"
 	"fmt"
-	"io"
 	"os"
 	"strings"
 	"time"
@@ -11,15 +10,18 @@ import (
 	storagev1alpha1 "github.com/forbearing/horus-operator/apis/storage/v1alpha1"
 	"github.com/forbearing/horus-operator/pkg/template"
 	"github.com/forbearing/horus-operator/pkg/types"
+	"github.com/forbearing/horus-operator/pkg/util"
 	"github.com/sirupsen/logrus"
 )
 
 // createFindpvdirDeployment
-func createFindpvdirDeployment(operatorNamespace string, backupObj *storagev1alpha1.Backup, meta pvdataMeta) (string, time.Duration, error) {
+func createFindpvdirDeployment(backupObj *storagev1alpha1.Backup, meta pvdataMeta) (string, time.Duration, error) {
 	beginTime := time.Now()
+	operatorNamespace := util.GetOperatorNamespace()
 	podHandler.ResetNamespace(operatorNamespace)
 	logger := logrus.WithFields(logrus.Fields{
-		"Component": findpvdirName,
+		"Component":         findpvdirName,
+		"OperatorNamespace": operatorNamespace,
 	})
 
 	deployName := findpvdirName + "-" + meta.nodeName
@@ -40,7 +42,7 @@ func createFindpvdirDeployment(operatorNamespace string, backupObj *storagev1alp
 		// deployment.spec.template.spec.containers.env
 		// the environment variables passed to pods.
 		backupObj.Spec.TimeZone))
-	podObj, err := createAndGetRunningPod(operatorNamespace, findpvdirBytes)
+	execPod, err := createAndGetRunningPod(operatorNamespace, findpvdirBytes)
 	if err != nil {
 		return "", time.Now().Sub(beginTime), err
 	}
@@ -64,13 +66,16 @@ func createFindpvdirDeployment(operatorNamespace string, backupObj *storagev1alp
 		}
 		return pvObj.Spec.Local.Path, time.Now().Sub(beginTime), nil
 	}
-	logger.Debugf("executing command %v to find persistentvolume data in node %s", cmdFindpvdir, meta.nodeName)
+	logger.Debugf("executing command %v to find persistentvolume data in pod %s", cmdFindpvdir, execPod.GetName())
 
 	// It will execute command "cmdFindpvdir" within pod to find the persistentvolume data directory path
-	// and output it to stdout.
-	stdout := new(bytes.Buffer)
-	if err := podHandler.ExecuteWithStream(podObj.Name, "", cmdFindpvdir, os.Stdin, stdout, io.Discard); err != nil {
+	// and output it to cmdOutput.
+	cmdOutput := new(bytes.Buffer)
+	if err := podHandler.ExecuteWithStream(execPod.GetName(), "", cmdFindpvdir, os.Stdin, cmdOutput, cmdOutput); err != nil {
 		return "", time.Now().Sub(beginTime), fmt.Errorf("%s find the persistentvolume data directory failed: %s", findpvdirName, err.Error())
 	}
-	return strings.TrimSpace(stdout.String()), time.Now().Sub(beginTime), nil
+	podHandler.Execute(execPod.GetName(), "", cmdFindpvdir)
+	logger.Debugf("the persistentvolume data path is: %s", strings.TrimSpace(cmdOutput.String()))
+	logger.Debugf("the persistentvolume data path is: %s", cmdOutput.String())
+	return strings.TrimSpace(cmdOutput.String()), time.Now().Sub(beginTime), nil
 }
