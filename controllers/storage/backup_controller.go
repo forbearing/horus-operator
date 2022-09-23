@@ -195,6 +195,8 @@ func (r *BackupReconciler) cronjobForBackup(b *storagev1alpha1.Backup) *batchv1.
 									Command: []string{
 										"horusctl",
 										"backup",
+										"--log-level", b.Spec.LogLevel,
+										"--log-format", b.Spec.LogFormat,
 										"--namespace", b.GetNamespace(), b.Spec.BackupFrom.Name,
 									},
 									Env: []corev1.EnvVar{
