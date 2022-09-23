@@ -116,6 +116,8 @@ func (r *BackupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 				return ctrl.Result{}, err
 			}
 			logger.Info("Successfully create cronjob/" + cronjobObject.GetName())
+			// cronjob created, return and requeue
+			return ctrl.Result{Requeue: true}, nil
 		} else {
 			// get cronjob error
 			logger.Error(err, "get cronjob failed")
