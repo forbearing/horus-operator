@@ -630,6 +630,12 @@ spec:
                   - name
                   type: object
                 type: array
+              logFormat:
+                description: LogFormat
+                type: string
+              logLevel:
+                description: LogLevel
+                type: string
               retention:
                 description: The number of backup to be retained. Value must be non-negative
                   interger. Default to 0, and means keep all backups.
@@ -648,6 +654,8 @@ spec:
             - backupFrom
             - backupTo
             - credentialName
+            - logFormat
+            - logLevel
             - schedule
             type: object
           status:

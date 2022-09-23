@@ -68,6 +68,11 @@ type BackupSpec struct {
 	// MINIO_ACCESS_KEY:		minio access key
 	// MINIO_SECRET_KEY:		minio secret key
 	CredentialName string `json:"credentialName"`
+
+	// LogLevel
+	LogLevel string `json:"logLevel"`
+	// LogFormat
+	LogFormat string `json:"logFormat"`
 }
 
 // BackupFrom defines where the data should backup from

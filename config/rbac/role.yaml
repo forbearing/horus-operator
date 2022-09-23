@@ -77,6 +77,18 @@ rules:
   - update
   - watch
 - apiGroups:
+  - batchv1
+  resources:
+  - cronjobs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
   - networking.hybfkuf.io
   resources:
   - traffics
