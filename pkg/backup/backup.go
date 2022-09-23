@@ -88,25 +88,21 @@ var (
 )
 
 var (
-	ResourceTypeError = errors.New("Backup.spec.backupFrom.resource field value must be pod, deployment, statefulset or daemonset")
+	ErrResourceType = errors.New("Backup.spec.backupFrom.resource field value must be pod, deployment, statefulset or daemonset")
 )
 
 // Do
-func Do(ctx context.Context, kind string, backupObjNS, backupObjName string) error {
+func Do(ctx context.Context, backupObjNS, backupObjName string) error {
 	beginTime := time.Now()
 	dynHandler.ResetNamespace(backupObjNS)
 	logger := logrus.WithFields(logrus.Fields{
 		"Component": "Backup",
 	})
 
-	if len(kind) == 0 {
-		logger.Errorf("resource kind must be set")
-		return nil
-	}
 	gvk := schema.GroupVersionKind{
 		Group:   storagev1alpha1.GroupVersion.Group,
 		Version: storagev1alpha1.GroupVersion.Version,
-		Kind:    kind,
+		Kind:    types.KindBackup,
 	}
 	unstructObj, err := dynHandler.WithGVK(gvk).Get(backupObjName)
 	if err != nil {
@@ -213,7 +209,7 @@ func getPvcpvMap(ctx context.Context, backupObj *storagev1alpha1.Backup) (map[st
 			return nil, time.Duration(0), fmt.Errorf("daemonset handler get pod error: %s", err.Error())
 		}
 	default:
-		return nil, time.Duration(0), fmt.Errorf(ResourceTypeError.Error())
+		return nil, time.Duration(0), fmt.Errorf(ErrResourceType.Error())
 	}
 	// podObjList contains all pods that managed/owned by the Deployment, StatefulSet or DaemonSet.
 	// we iterate over each pod to get its mounted persistentvolumeclaim(aka pvc),
