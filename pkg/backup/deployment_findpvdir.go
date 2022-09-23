@@ -71,11 +71,16 @@ func createFindpvdirDeployment(backupObj *storagev1alpha1.Backup, meta pvdataMet
 	// It will execute command "cmdFindpvdir" within pod to find the persistentvolume data directory path
 	// and output it to cmdOutput.
 	cmdOutput := new(bytes.Buffer)
-	if err := podHandler.ExecuteWithStream(execPod.GetName(), "", cmdFindpvdir, os.Stdin, cmdOutput, cmdOutput); err != nil {
-		return "", time.Now().Sub(beginTime), fmt.Errorf("%s find the persistentvolume data directory failed: %s", findpvdirName, err.Error())
+	for i := 1; i <= 12; i++ {
+		if err := podHandler.ExecuteWithStream(execPod.GetName(), "", cmdFindpvdir, os.Stdin, cmdOutput, cmdOutput); err != nil {
+			return "", time.Now().Sub(beginTime), fmt.Errorf("%s find the persistentvolume data directory failed: %s", findpvdirName, err.Error())
+		}
+		if len(strings.TrimSpace(cmdOutput.String())) != 0 {
+			break
+		}
+		logger.Warnf("the persistentvolume data path not found, retry %d", i)
+		time.Sleep(time.Second * 5)
 	}
-	podHandler.Execute(execPod.GetName(), "", cmdFindpvdir)
 	logger.Debugf("the persistentvolume data path is: %s", strings.TrimSpace(cmdOutput.String()))
-	logger.Debugf("the persistentvolume data path is: %s", cmdOutput.String())
 	return strings.TrimSpace(cmdOutput.String()), time.Now().Sub(beginTime), nil
 }
