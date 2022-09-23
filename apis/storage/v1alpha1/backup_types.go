@@ -60,6 +60,14 @@ type BackupSpec struct {
 	// Cluster Name
 	// +optional
 	Cluster string `json:"cluster"`
+	// CredentialName is a k8s secret name and must exist in the same namespace
+	// as the horus-operator.
+	//
+	// All available envriable variables:
+	// RESTIC_PASSWORD:			restic password
+	// MINIO_ACCESS_KEY:		minio access key
+	// MINIO_SECRET_KEY:		minio secret key
+	CredentialName string `json:"credentialName"`
 }
 
 // BackupFrom defines where the data should backup from
@@ -112,10 +120,6 @@ type NFS struct {
 	Server string `json:"server"`
 	// path that is exported by the NFS server.
 	Path string `json:"path"`
-	// CredentialName is a k8s secret name and must exist in the same namespace
-	// as the horus-operator.
-	// RESTIC_PASSWORD:  restic password
-	CredentialName string `json:"credentialName"`
 }
 
 type PVC struct {
@@ -156,14 +160,6 @@ type MinIO struct {
 	Bucket   string         `json:"bucket"`
 	// +optional
 	Folder string `json:"folder"`
-	// CredentialName is a k8s secret name and must exist in the same namespace
-	// as the horus-operator.
-	// RESTIC_PASSWORD:  restic password
-	// MINIO_ACCESS_KEY: minio access key
-	// MINIO_SECRET_KEY: minio secret key
-	CredentialName string `json:"credentialName"`
-	// +optional
-	CredentialNamespace string `json:"credentialNamespace"`
 	// +optional
 	InsecureTLSSkipVerify bool `json:"insecureTLSSkipVerify"`
 	// +optional

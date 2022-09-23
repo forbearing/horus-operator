@@ -79,14 +79,6 @@ spec:
                     properties:
                       bucket:
                         type: string
-                      credentialName:
-                        description: 'CredentialName is a k8s secret name and must
-                          exist in the same namespace as the horus-operator. RESTIC_PASSWORD:  restic
-                          password MINIO_ACCESS_KEY: minio access key MINIO_SECRET_KEY:
-                          minio secret key'
-                        type: string
-                      credentialNamespace:
-                        type: string
                       endpoint:
                         properties:
                           address:
@@ -109,17 +101,11 @@ spec:
                         type: string
                     required:
                     - bucket
-                    - credentialName
                     - endpoint
                     type: object
                   nfs:
                     description: backup to nfs server
                     properties:
-                      credentialName:
-                        description: 'CredentialName is a k8s secret name and must
-                          exist in the same namespace as the horus-operator. RESTIC_PASSWORD:  restic
-                          password'
-                        type: string
                       path:
                         description: path that is exported by the NFS server.
                         type: string
@@ -128,7 +114,6 @@ spec:
                           server.
                         type: string
                     required:
-                    - credentialName
                     - path
                     - server
                     type: object
@@ -534,6 +519,12 @@ spec:
               cluster:
                 description: Cluster Name
                 type: string
+              credentialName:
+                description: "CredentialName is a k8s secret name and must exist in
+                  the same namespace as the horus-operator. \n All available envriable
+                  variables: RESTIC_PASSWORD:\t\t\trestic password MINIO_ACCESS_KEY:\t\tminio
+                  access key MINIO_SECRET_KEY:\t\tminio secret key"
+                type: string
               env:
                 description: Environment variable passed to backup program.
                 items:
@@ -656,6 +647,7 @@ spec:
             required:
             - backupFrom
             - backupTo
+            - credentialName
             - schedule
             type: object
           status:
