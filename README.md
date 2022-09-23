@@ -17,40 +17,42 @@ API description:
 ## Backup Object examples:
 
 ```yaml
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: horus-credential
+  namespace: horus-operator-system
+stringData:
+  MINIO_ACCESS_KEY: "minioadmin"
+  MINIO_SECRET_KEY: "minioadmin"
+  RESTIC_PASSWORD: "restic"
+---
 apiVersion: storage.hybfkuf.io/v1alpha1
 kind: Backup
 metadata:
-  name: backup-sample
+  name: nginx-sts
 spec:
-  schedule: "*/1 * * * *"
+  schedule: "*/10 * * * *"
   backupFrom:
     resource: statefulset
     name: nginx-sts
   backupTo:
     nfs:
-      server: 1.1.1.1
+      server: 10.250.16.21
       path: /srv/nfs/restic
-      credentialName: minio-credential
     minio:
       endpoint:
         scheme: http
-        address: 1.1.1.1
+        address: 10.250.16.21
         port: 9000
       bucket: restic
-      credentialName: minio-credential
   timezone: 'Asia/Shanghai'
   timeout: 10m
   cluster: mycluster
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: minio-credential
-  namespace: horus-operator
-stringData:
-  MINIO_ACCESS_KEY: "minioadmin"
-  MINIO_SECRET_KEY: "minioadmin"
-  RESTIC_PASSWORD: "restic"
+  credentialName: horus-credential
+  logLevel: info
+  logFormat: text
 ```
 
 
