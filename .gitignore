@@ -6,3 +6,4 @@
 *.nosync
 *rsync.sh
 .idea
+tmp
