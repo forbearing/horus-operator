@@ -36,7 +36,7 @@ func createBackup2nfsDeployment(backupObj *storagev1alpha1.Backup, meta pvdataMe
 		backupObj.Spec.TimeZone, resticRepo,
 		// restic repository mount path
 		// deployment.spec.template.containers.env
-		backupObj.Spec.BackupTo.NFS.CredentialName, resticRepo,
+		backupObj.Spec.CredentialName, resticRepo,
 		// deployment.spec.template.volumes
 		// the volumes mounted by pod
 		backupObj.Spec.BackupTo.NFS.Server, backupObj.Spec.BackupTo.NFS.Path))

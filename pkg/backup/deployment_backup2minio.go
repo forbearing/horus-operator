@@ -22,11 +22,11 @@ func createBackup2minioDepoyment(backupObj *storagev1alpha1.Backup, meta pvdataM
 	port := backupObj.Spec.BackupTo.MinIO.Endpoint.Port
 	bucket := backupObj.Spec.BackupTo.MinIO.Bucket
 	folder := backupObj.Spec.BackupTo.MinIO.Folder
-	credentialName := backupObj.Spec.BackupTo.MinIO.CredentialName
+	credentialName := backupObj.Spec.CredentialName
 
 	operatorNamespace := util.GetOperatorNamespace()
 	secHandler.ResetNamespace(operatorNamespace)
-	secObj, err := secHandler.Get(backupObj.Spec.BackupTo.MinIO.CredentialName)
+	secObj, err := secHandler.Get(backupObj.Spec.CredentialName)
 	if err != nil {
 		return nil, time.Duration(0), fmt.Errorf("secret handler get secret error: %s", err.Error())
 	}
