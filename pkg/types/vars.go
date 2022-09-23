@@ -8,7 +8,7 @@ import (
 var (
 	DefaultNamespace         = "default"
 	DefaultOperatorName      = "horus-operator"
-	DefaultOperatorNamespace = "horus-operator"
+	DefaultOperatorNamespace = "horus-operator-system"
 	DefaultClusterName       = "kubernetes"
 
 	DefaultBackupFinalizerName    = "backup.storage.hybfkuf.io/finalizer"
