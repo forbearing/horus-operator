@@ -8,12 +8,19 @@ spec:
     resource: statefulset
     name: nginx-sts
   backupTo:
-    #nfs:
-    #  server: 10.250.16.21
-    #  path: /srv/nfs/restic
+    nfs:
+      server: 10.250.16.21
+      path: /srv/nfs/restic
     minio:
-      endpoint: http://10.250.16.21:9000
+      endpoint:
+        scheme: http
+        address: 10.250.16.21
+        port: 9000
       bucket: restic
-      credentialName: minio-secret
   timezone: 'Asia/Shanghai'
   timeout: 10m
+  cluster: mycluster
+  credentialName: horus-credential
+  #logLevel: debug
+  logLevel: info
+  logFormat: text
