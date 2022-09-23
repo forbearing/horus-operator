@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: minio
+  namespace: minio
+  labels:
+    app: minio
+spec:
+  strategy:
+    type: Recreate
+  replicas: 1
+  selector:
+    matchLabels:
+      app : minio
+  template:
+    metadata:
+      labels:
+        app: minio
+    spec:
+      nodeName: "d11-k8s-worker1"
+      containers:
+      - name: minio
+        image: minio/minio:RELEASE.2022-09-07T22-25-02Z
+        #command: [minio server /data]
+        args: ["server", "/data"]
+        ports:
+        - name: http
+          containerPort: 9000
+        volumeMounts:
+        - name: data
+          mountPath: /data
+        env:
+        - name: MINIO_ROOT_USER
+          valueFrom:
+            secretKeyRef:
+              name: minio-secret
+              key: MINIO_ROOT_USER
+        - name: MINIO_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: minio-secret
+              key: MINIO_ROOT_PASSWORD
+        livenessProbe:
+          tcpSocket:
+            port: http
+          failureThreshold: 3
+          timeoutSeconds: 3
+          periodSeconds: 10
+        readinessProbe:
+          tcpSocket:
+            port: http
+          failureThreshold: 3
+          timeoutSeconds: 3
+          periodSeconds: 10
+      volumes:
+      - name: data
+        hostPath:
+          type: DirectoryOrCreate
+          path: /tmp/data

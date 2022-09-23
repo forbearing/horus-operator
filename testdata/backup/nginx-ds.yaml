@@ -1,0 +1,19 @@
+apiVersion: storage.hybfkuf.io/v1alpha1
+kind: Backup
+metadata:
+  name: nginx-ds
+spec:
+  schedule: "*/1 * * * *"
+  backupFrom:
+    resource: daemonset
+    name: nginx-ds
+  backupTo:
+    #nfs:
+    #  server: 10.250.16.21
+    #  path: /srv/nfs/restic
+    minio:
+      endpoint: http://10.250.16.21:9000
+      bucket: restic
+      credentialName: minio-secret
+  timezone: 'Asia/Shanghai'
+  timeout: 10m
