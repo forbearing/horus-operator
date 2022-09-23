@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: horusctl
+  namespace: devops
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: horusctl
+  template:
+    metadata:
+      labels:
+        app: horusctl
+    spec:
+      serviceAccountName: horusctl
+      containers:
+      - name: horusctl
+        image: hybfkuf/horusctl:latest
+        command:
+        - sleep
+        - infinity
