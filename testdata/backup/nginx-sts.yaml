@@ -3,7 +3,7 @@ kind: Backup
 metadata:
   name: nginx-sts
 spec:
-  schedule: "*/1 * * * *"
+  schedule: "*/10 * * * *"
   backupFrom:
     resource: statefulset
     name: nginx-sts

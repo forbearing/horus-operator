@@ -131,7 +131,9 @@ More information can be found via the [Kubebuilder Documentation](https://book.k
 
 ## Snapshots
 
+![horus-operator-logs](docs/pics/horus-operator-logs.png)
 
+![backup-statefulset-1](docs/pics/backup-statefulset-1.png)
 
 ## License
 
