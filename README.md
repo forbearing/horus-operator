@@ -24,9 +24,9 @@ metadata:
   name: horus-credential
   namespace: horus-operator-system
 stringData:
+  RESTIC_PASSWORD: "restic"
   MINIO_ACCESS_KEY: "minioadmin"
   MINIO_SECRET_KEY: "minioadmin"
-  RESTIC_PASSWORD: "restic"
 ---
 apiVersion: storage.hybfkuf.io/v1alpha1
 kind: Backup
