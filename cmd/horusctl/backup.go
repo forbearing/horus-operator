@@ -22,7 +22,7 @@ var (
 			logger.Init()
 
 			for _, arg := range args {
-				if err := backup.Backup(context.TODO(), types.KindBackup, namespace, arg); err != nil {
+				if err := backup.Do(context.TODO(), types.KindBackup, namespace, arg); err != nil {
 					logrus.Error(err)
 				}
 			}
