@@ -128,8 +128,9 @@ func (r *BackupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		if err := r.Update(ctx, cronjobObject); err != nil {
 			logger.Error(err, "update cronjob failed")
 			return ctrl.Result{}, err
+		} else {
+			logger.Info("Successfully udpate cronjob/" + cronjobObject.GetName())
 		}
-		logger.Info("Successfully udpate cronjob/" + cronjobObject.GetName())
 	}
 
 	return ctrl.Result{}, nil
