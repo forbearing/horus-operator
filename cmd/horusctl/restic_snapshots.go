@@ -1,8 +1,11 @@
 package horusctl
 
 import (
+	"os"
+
 	"github.com/forbearing/horus-operator/pkg/logger"
 	"github.com/forbearing/horus-operator/pkg/restic"
+	"github.com/forbearing/k8s/util/signals"
 	"github.com/spf13/cobra"
 )
 
@@ -20,7 +23,7 @@ var (
 			builder.SetLogFormat(logFormat)
 			logger.Init()
 
-			restic.Snapshot(storage, cluster, tags)
+			restic.Snapshots(signals.NewSignalContext(), storage, cluster, tags, os.Stdout)
 		},
 	}
 )

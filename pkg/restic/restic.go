@@ -2,6 +2,8 @@ package restic
 
 import (
 	"context"
+	"io"
+	"os"
 	"strings"
 
 	"github.com/forbearing/horus-operator/pkg/types"
@@ -17,7 +19,7 @@ var (
 	podHandler = pod.NewOrDie(ctx, "", "")
 )
 
-func Snapshot(storage string, cluster []string, tags []string) error {
+func Snapshots(ctx context.Context, storage string, cluster []string, tags []string, cmdOutput io.Writer) error {
 	var (
 		err     error
 		execPod *corev1.Pod
@@ -56,7 +58,7 @@ func Snapshot(storage string, cluster []string, tags []string) error {
 	cmdSnapshot := res.Command(restic.Snapshots{Tag: tags, Host: cluster}).String()
 
 	logrus.Debugf(`execute command "%s" within "pod/%s"`, cmdSnapshot, execPod.GetName())
-	if err := podHandler.Execute(execPod.GetName(), "", strings.Split(cmdSnapshot, " ")); err != nil {
+	if err := podHandler.ExecuteWithStream(execPod.GetName(), "", strings.Split(cmdSnapshot, " "), os.Stdin, cmdOutput, cmdOutput); err != nil {
 		logrus.Errorf(`pod handler execute command "%s" wthin pod/"%s" failed`, cmdSnapshot, execPod.GetName())
 		return err
 	}
