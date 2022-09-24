@@ -49,6 +49,7 @@ rules:
   - apps
   - ""
   resources:
+  - deployments
   - statefulsets
   - daemonsets
   - replicasets
