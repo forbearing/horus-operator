@@ -5,7 +5,6 @@ import (
 
 	"github.com/forbearing/horus-operator/pkg/backup"
 	"github.com/forbearing/horus-operator/pkg/logger"
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
@@ -21,9 +20,7 @@ var (
 			logger.Init()
 
 			for _, arg := range args {
-				if err := backup.Do(context.TODO(), namespace, arg); err != nil {
-					logrus.Error(err)
-				}
+				backup.Do(context.TODO(), namespace, arg)
 			}
 		},
 	}
