@@ -106,8 +106,8 @@ func createAndGetRunningPod2(namespace string, deployData interface{}) (*corev1.
 	return podObj, nil
 }
 
-// parseBackupTo parse the backup.spec.backupTo field to know where we should backup to
-func parseBackupTo(backupObj *storagev1alpha1.Backup) []string {
+// parseStorage parse the backup.spec.backupTo field to know where we should backup to
+func parseStorage(backupObj *storagev1alpha1.Backup) []string {
 	t := reflect.TypeOf(backupObj.Spec.BackupTo).Elem()
 	v := reflect.ValueOf(backupObj.Spec.BackupTo).Elem()
 

@@ -316,7 +316,7 @@ func doBackup(backupObj *storagev1alpha1.Backup, pvcpvMap map[string]pvdataMeta)
 	})
 
 	for pvc, meta := range pvcpvMap {
-		for _, remoteStorage := range parseBackupTo(backupObj) {
+		for _, remoteStorage := range parseStorage(backupObj) {
 			var err error
 			var costedTime time.Duration
 			switch remoteStorage {
