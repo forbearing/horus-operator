@@ -17,7 +17,7 @@ var (
 	podHandler = pod.NewOrDie(ctx, "", "")
 )
 
-func Snapshot(storage string, cluster []string, tags []string) {
+func Snapshot(storage string, cluster []string, tags []string) error {
 	var (
 		err     error
 		execPod *corev1.Pod
@@ -30,26 +30,26 @@ func Snapshot(storage string, cluster []string, tags []string) {
 	case types.StorageNFS:
 		if podsObj, err = podHandler.ListByLabel(types.Backup2NFSDeployLabel); err != nil {
 			logrus.Errorf("pod handler list pods in namespace/%s by labels error: %s", operatorNamespace, err.Error())
-			return
+			return err
 		}
 		execPod = filterRunningPod(podsObj)
 		if execPod == nil {
 			logrus.Errorf(`not found running pod in namespace/%s with label "%s"`, operatorNamespace, types.Backup2NFSDeployLabel)
-			return
+			return err
 		}
 	case types.StorageMinIO:
 		if podsObj, err = podHandler.ListByLabel(types.Backup2MinioDeployLabel); err != nil {
 			logrus.Errorf("pod handler list pods in namespace/%s by labels error: %s", operatorNamespace, err.Error())
-			return
+			return err
 		}
 		execPod = filterRunningPod(podsObj)
 		if execPod == nil {
 			logrus.Errorf(`not found running pod in namespace/%s with label "%s"`, operatorNamespace, types.Backup2MinioDeployLabel)
-			return
+			return err
 		}
 	default:
 		logrus.Errorf(`not support storage type: %s`, storage)
-		return
+		return err
 	}
 
 	res := restic.NewIgnoreNotFound(context.TODO(), &restic.GlobalFlags{NoCache: true})
@@ -58,8 +58,10 @@ func Snapshot(storage string, cluster []string, tags []string) {
 	logrus.Debugf(`execute command "%s" within "pod/%s"`, cmdSnapshot, execPod.GetName())
 	if err := podHandler.Execute(execPod.GetName(), "", strings.Split(cmdSnapshot, " ")); err != nil {
 		logrus.Errorf(`pod handler execute command "%s" wthin pod/"%s" failed`, cmdSnapshot, execPod.GetName())
-		return
+		return err
 	}
+
+	return nil
 }
 
 func Stats() {
