@@ -22,9 +22,9 @@ var (
 	DefaultCloneTimeout     = time.Hour
 	DefaultMigrationTimeout = time.Hour
 
-	AnnotationCreatedTime   = "storage.hybfkuf.io/createdAt"
-	AnnotationUpdatedTime   = "storage.hybfkuf.io/updatedAt"
-	AnnotationRestartedTime = "storage.hybfkuf.io/restartedAt"
+	AnnotationCreatedTime   = "hybfkuf.io/createdAt"
+	AnnotationUpdatedTime   = "hybfkuf.io/updatedAt"
+	AnnotationRestartedTime = "hybfkuf.io/restartedAt"
 )
 
 var (
