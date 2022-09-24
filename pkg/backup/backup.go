@@ -107,12 +107,12 @@ func Do(ctx context.Context, backupObjNS, backupObjName string) error {
 	unstructObj, err := dynHandler.WithGVK(gvk).Get(backupObjName)
 	if err != nil {
 		logger.Errorf("dynamic handler get Backup object failed: %s", err.Error())
-		return nil
+		return err
 	}
 	backupObj := &storagev1alpha1.Backup{}
 	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(unstructObj.UnstructuredContent(), backupObj); err != nil {
 		logger.Errorf("convert unstructured object to Backup object failed: %s", err.Error())
-		return nil
+		return err
 	}
 
 	backupFrom := backupObj.Spec.BackupFrom
@@ -125,19 +125,19 @@ func Do(ctx context.Context, backupObjNS, backupObjName string) error {
 	pvcpvMap, costedTime, err := getPvcpvMap(ctx, backupObj)
 	if err != nil {
 		logger.Error(err)
-		return nil
+		return err
 	}
 	logger.WithField("Cost", costedTime.String()).Infof("Successfully prepare pvc and pv metadata")
 
 	// 2. Do backup
 	if costedTime, err = doBackup(backupObj, pvcpvMap); err != nil {
 		logger.Error(err)
-		return nil
+		return err
 	}
 
 	logger.WithField("Cost", time.Now().Sub(beginTime).String()).
 		Infof("Successfully Backup %s/%s", backupFrom.Resource, backupFrom.Name)
-	return nil
+	return err
 }
 
 // getPvcpvMap backup the k8s resource defined in Backup object to nfs storage.
