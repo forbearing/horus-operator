@@ -3,6 +3,7 @@ package backup
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"time"
@@ -72,7 +73,7 @@ func createFindpvdirDeployment(backupObj *storagev1alpha1.Backup, meta pvdataMet
 	// and output it to cmdOutput.
 	cmdOutput := new(bytes.Buffer)
 	for i := 1; i <= 12; i++ {
-		if err := podHandler.ExecuteWithStream(execPod.GetName(), "", cmdFindpvdir, os.Stdin, cmdOutput, cmdOutput); err != nil {
+		if err := podHandler.ExecuteWithStream(execPod.GetName(), "", cmdFindpvdir, os.Stdin, cmdOutput, io.Discard); err != nil {
 			return "", time.Now().Sub(beginTime), fmt.Errorf("%s find the persistentvolume data directory failed: %s", findpvdirName, err.Error())
 		}
 		if len(strings.TrimSpace(cmdOutput.String())) != 0 {
