@@ -9,7 +9,7 @@ import (
 )
 
 // GetBackupToStorage find the storage which should data backup to.
-func GetBackupToStorage(backupObj *storagev1alpha1.Backup) string {
+func GetBackupToStorage(backupObj *storagev1alpha1.Backup) types.Storage {
 	t := reflect.TypeOf(backupObj.Spec.BackupTo).Elem()
 	v := reflect.ValueOf(backupObj.Spec.BackupTo).Elem()
 
@@ -18,20 +18,20 @@ func GetBackupToStorage(backupObj *storagev1alpha1.Backup) string {
 		if !reflect.ValueOf(val).IsNil() {
 			tag := t.Field(i).Tag.Get("json")
 			switch {
-			case strings.Contains(tag, types.StorageNFS):
+			case strings.Contains(tag, string(types.StorageNFS)):
 				return types.StorageNFS
-			case strings.Contains(tag, types.StorageCephFS):
+			case strings.Contains(tag, string(types.StorageCephFS)):
 				return types.StorageCephFS
-			case strings.Contains(tag, types.StorageS3):
+			case strings.Contains(tag, string(types.StorageS3)):
 				return types.StorageS3
-			case strings.Contains(tag, types.StorageRestServer):
+			case strings.Contains(tag, string(types.StorageRestServer)):
 				return types.StorageRestServer
-			case strings.Contains(tag, types.StorageSFTP):
+			case strings.Contains(tag, string(types.StorageSFTP)):
 				return types.StorageSFTP
-			case strings.Contains(tag, types.StorageRClone):
+			case strings.Contains(tag, string(types.StorageRClone)):
 				return types.StorageRClone
 			default:
-				return strings.Split(tag, ",")[0]
+				return types.Storage(strings.Split(tag, ",")[0])
 			}
 		}
 
