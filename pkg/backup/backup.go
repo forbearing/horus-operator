@@ -94,9 +94,11 @@ var (
 // Do
 func Do(ctx context.Context, backupObjNS, backupObjName string) error {
 	beginTime := time.Now()
+	operatorNamespace := util.GetOperatorNamespace()
 	dynHandler.ResetNamespace(backupObjNS)
 	logger := logrus.WithFields(logrus.Fields{
-		"Component": "Backup",
+		"Component":         "Backup",
+		"OperatorNamespace": operatorNamespace,
 	})
 
 	gvk := schema.GroupVersionKind{
@@ -121,7 +123,7 @@ func Do(ctx context.Context, backupObjNS, backupObjName string) error {
 		"Resource":  backupFrom.Resource,
 	})
 
-	// 1. prepare pvc and pv metadata
+	//  prepare pvc and pv metadata
 	pvcpvMap, costedTime, err := getPvcpvMap(ctx, backupObj)
 	if err != nil {
 		logger.Error(err)
@@ -129,10 +131,16 @@ func Do(ctx context.Context, backupObjNS, backupObjName string) error {
 	}
 	logger.WithField("Cost", costedTime.String()).Infof("Successfully prepare pvc and pv metadata")
 
-	// 2. Do backup
-	if costedTime, err = doBackup(backupObj, pvcpvMap); err != nil {
-		logger.Error(err)
-		return err
+	// ====================
+	// Backup to remote storage
+	// ====================
+	for pvc, meta := range pvcpvMap {
+		for _, storage := range parseStorage(backupObj) {
+			if err := BackupFactory(storage)(backupObj, pvc, meta); err != nil {
+				logger.Errorf("Backup to %s failed:", storage)
+				return err
+			}
+		}
 	}
 
 	logger.WithField("Cost", time.Now().Sub(beginTime).String()).
@@ -304,34 +312,43 @@ func getPvcpvMap(ctx context.Context, backupObj *storagev1alpha1.Backup) (map[st
 	return pvcpvMap, time.Now().Sub(beginTime), nil
 }
 
-// doBackup
-func doBackup(backupObj *storagev1alpha1.Backup, pvcpvMap map[string]pvdataMeta) (time.Duration, error) {
-	beginTime := time.Now()
-	operatorNamespace := util.GetOperatorNamespace()
-	podHandler.ResetNamespace(operatorNamespace)
-	logger := logrus.WithFields(logrus.Fields{
-		"Component":         "backup",
-		"Tool":              "restic",
-		"OperatorNamespace": operatorNamespace,
-	})
+//// doBackup
+//func doBackup(backupObj *storagev1alpha1.Backup, pvcpvMap map[string]pvdataMeta) (time.Duration, error) {
+//    beginTime := time.Now()
+//    operatorNamespace := util.GetOperatorNamespace()
+//    podHandler.ResetNamespace(operatorNamespace)
+//    logger := logrus.WithFields(logrus.Fields{
+//        "Component":         "backup",
+//        "Tool":              "restic",
+//        "OperatorNamespace": operatorNamespace,
+//    })
 
-	for pvc, meta := range pvcpvMap {
-		for _, remoteStorage := range parseStorage(backupObj) {
-			var err error
-			var costedTime time.Duration
-			switch remoteStorage {
-			case types.StorageNFS:
-				if costedTime, err = Backup2NFS(backupObj, pvc, meta); err != nil {
-					logger.WithField("Cost", costedTime.String()).Errorf("Backup to NFS failed: %s", err.Error())
-					return time.Now().Sub(beginTime), err
-				}
-			case types.StorageMinIO:
-				if costedTime, err = Backup2MinIO(backupObj, pvc, meta); err != nil {
-					logger.WithField("Cost", costedTime.String()).Errorf("Backup to MinIO failed: %s", err.Error())
-					return time.Now().Sub(beginTime), err
-				}
-			}
-		}
-	}
-	return time.Now().Sub(beginTime), nil
-}
+//    for pvc, meta := range pvcpvMap {
+//        for _, remoteStorage := range parseStorage(backupObj) {
+//            var err error
+//            var costedTime time.Duration
+//            _ = costedTime
+//            switch remoteStorage {
+//            case string(types.StorageNFS):
+//                //if costedTime, err = Backup2NFS(backupObj, pvc, meta); err != nil {
+//                //    logger.WithField("Cost", costedTime.String()).Errorf("Backup to NFS failed: %s", err.Error())
+//                //    return time.Now().Sub(beginTime), err
+//                //}
+//                if err = Backup2NFS(backupObj, pvc, meta); err != nil {
+//                    logger.Errorf("Backup to NFS failed: %s", err.Error())
+//                    return time.Now().Sub(beginTime), err
+//                }
+//            case string(types.StorageMinIO):
+//                //if costedTime, err = Backup2MinIO(backupObj, pvc, meta); err != nil {
+//                //    logger.WithField("Cost", costedTime.String()).Errorf("Backup to MinIO failed: %s", err.Error())
+//                //    return time.Now().Sub(beginTime), err
+//                //}
+//                if err = Backup2MinIO(backupObj, pvc, meta); err != nil {
+//                    logger.Errorf("Backup to MinIO failed: %s", err.Error())
+//                    return time.Now().Sub(beginTime), err
+//                }
+//            }
+//        }
+//    }
+//    return time.Now().Sub(beginTime), nil
+//}
