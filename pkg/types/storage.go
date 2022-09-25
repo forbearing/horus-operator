@@ -1,14 +1,18 @@
 package types
 
-const (
-	StorageNFS        = "nfs"
-	StorageMinIO      = "minio"
-	StorageS3         = "s3"
-	StorageCephFS     = "cephfs"
-	StorageRestServer = "restServer"
-	StorageSFTP       = "sftp"
-	StorageRClone     = "rclone"
+type Storage string
 
+const (
+	StorageNFS        Storage = "nfs"
+	StorageMinIO      Storage = "minio"
+	StorageS3         Storage = "s3"
+	StorageCephFS     Storage = "cephfs"
+	StorageRestServer Storage = "restServer"
+	StorageSFTP       Storage = "sftp"
+	StorageRClone     Storage = "rclone"
+)
+
+const (
 	VolumeHostPath = "hostPath"
 	VolumeLocal    = "local"
 )
