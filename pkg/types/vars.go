@@ -22,9 +22,17 @@ var (
 	DefaultCloneTimeout     = time.Hour
 	DefaultMigrationTimeout = time.Hour
 
+	DefaultServiceAccountName = "horusctl"
+
 	AnnotationCreatedTime   = "hybfkuf.io/createdAt"
 	AnnotationUpdatedTime   = "hybfkuf.io/updatedAt"
 	AnnotationRestartedTime = "hybfkuf.io/restartedAt"
+
+	LabelPartOf     = "app.kubernetes.io/part-of"
+	LabelName       = "app.kubernetes.io/name"
+	LabelRole       = "app.kubernetes.io/role"
+	LabelBackupTool = "app.kubernetes.io/backup-tool"
+	LabelPairPartOf = LabelPartOf + "=" + DefaultOperatorName
 )
 
 var (
