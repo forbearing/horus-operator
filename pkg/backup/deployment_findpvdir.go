@@ -25,7 +25,7 @@ func createFindpvdirDeployment(backupObj *storagev1alpha1.Backup, meta pvdataMet
 		"OperatorNamespace": operatorNamespace,
 	})
 
-	deployName := findpvdirName + "-" + meta.nodeName + "-" + backupObj.GetName()
+	deployName := findpvdirName + "-" + backupObj.GetName() + "-" + meta.nodeName
 	findpvdirBytes := []byte(fmt.Sprintf(
 		// the deployment template
 		template.FindpvdirDeploymentTemplate,
