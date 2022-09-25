@@ -111,15 +111,15 @@ func parseStorage(backupObj *storagev1alpha1.Backup) []string {
 	t := reflect.TypeOf(backupObj.Spec.BackupTo).Elem()
 	v := reflect.ValueOf(backupObj.Spec.BackupTo).Elem()
 
-	var backupTo []string
+	var storages []string
 	for i := 0; i < v.NumField(); i++ {
 		val := v.Field(i).Interface()
 		if !reflect.ValueOf(val).IsNil() {
 			tag := t.Field(i).Tag.Get("json")
-			backupTo = append(backupTo, strings.Split(tag, ",")[0])
+			storages = append(storages, strings.Split(tag, ",")[0])
 		}
 	}
-	return backupTo
+	return storages
 }
 
 // createPassStdin 创建一个 *bytes.Buffer 对象, 该对象包含了 restic 密码
