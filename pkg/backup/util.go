@@ -107,16 +107,17 @@ func createAndGetRunningPod2(namespace string, deployData interface{}) (*corev1.
 }
 
 // parseStorage parse the backup.spec.backupTo field to know where we should backup to
-func parseStorage(backupObj *storagev1alpha1.Backup) []string {
+func parseStorage(backupObj *storagev1alpha1.Backup) []types.Storage {
 	t := reflect.TypeOf(backupObj.Spec.BackupTo).Elem()
 	v := reflect.ValueOf(backupObj.Spec.BackupTo).Elem()
 
-	var storages []string
+	var storages []types.Storage
 	for i := 0; i < v.NumField(); i++ {
 		val := v.Field(i).Interface()
 		if !reflect.ValueOf(val).IsNil() {
 			tag := t.Field(i).Tag.Get("json")
-			storages = append(storages, strings.Split(tag, ",")[0])
+			storage := types.Storage(strings.Split(tag, ",")[0])
+			storages = append(storages, storage)
 		}
 	}
 	return storages
