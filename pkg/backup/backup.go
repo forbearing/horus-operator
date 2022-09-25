@@ -173,11 +173,9 @@ func getPvcpvMap(ctx context.Context, backupObj *storagev1alpha1.Backup) (map[st
 	dsHandler.ResetNamespace(backupObj.GetNamespace())
 	pvcHandler.ResetNamespace(backupObj.GetNamespace())
 	logger := logrus.WithFields(logrus.Fields{
-		"Component": "Backup",
-		"Storage":   "NFS",
-		"Resource":  backupFrom.Resource,
 		"Namespace": namespace,
 		"Name":      backupFrom.Name,
+		"Resource":  backupFrom.Resource,
 	})
 
 	switch backupFrom.Resource {
