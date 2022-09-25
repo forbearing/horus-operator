@@ -66,35 +66,6 @@ type BackupReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.12.1/pkg/reconcile
 func (r *BackupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	//logger := log.FromContext(ctx)
-	//_ = logger
-	//logger := logrus.WithFields(logrus.Fields{
-	//    "Component": defaultOperatorName,
-	//})
-
-	/*
-		reqLogger := r.Log.WithValues("Namespace", req.Namespace, "Name", req.Name)
-		reqLogger.Info("Reconciling backup controller")
-
-		// 1.get a "Backup" resource
-		backupObj := &storagev1alpha1.Backup{}
-		err := r.Get(ctx, req.NamespacedName, backupObj)
-		if err != nil {
-			return ctrl.Result{}, client.IgnoreNotFound(err)
-		}
-
-		// Set the default tiemout for backup progress.
-		timeout := backupObj.Spec.Timeout.Duration
-		if timeout == time.Duration(0) {
-			timeout = types.DefaultBackupTimeout
-		}
-		backupCtx, cancel := context.WithTimeout(ctx, timeout)
-		defer cancel()
-		if err := backup.Backup(backupCtx, types.KindBackup, req.Namespace, req.Name); err != nil {
-			return ctrl.Result{}, err
-		}
-	*/
-
 	logger := r.Log.WithValues("Namespace", req.Namespace, "Name", req.Name)
 
 	// Get backup object and ignore "NotFound" error.
