@@ -18,7 +18,7 @@ package storage
 
 import (
 	"context"
-	"time"
+	"fmt"
 
 	storagev1alpha1 "github.com/forbearing/horus-operator/apis/storage/v1alpha1"
 	"github.com/forbearing/horus-operator/controllers/common"
@@ -176,38 +176,31 @@ func (r *BackupReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-var (
-	LabelName       = "app.kubernetes.io/name"
-	LabelRole       = "app.kubernetes.io/role"
-	LabelBackupTool = "app.kubernetes.io/backup-tool"
-	LabelPartOf     = "app.kubernetes.io/part-of"
-)
-
 // cronjobForBackup construct a *batch1.CronJob resource with the same namespace
 // and name as *storagev1alpha1.Backup.
 func (r *BackupReconciler) cronjobForBackup(b *storagev1alpha1.Backup) *batchv1.CronJob {
-	labels := make(map[string]string)
-	annotations := make(map[string]string)
-	for k, v := range b.Labels {
-		labels[k] = v
-	}
-	labels[LabelName] = "horusctl"
-	labels[LabelRole] = "backup"
-	labels[LabelBackupTool] = "restic"
-	labels[LabelPartOf] = types.DefaultOperatorName
-	for k, v := range b.Annotations {
-		annotations[k] = v
-	}
+	//labels := make(map[string]string)
+	//annotations := make(map[string]string)
+	//for k, v := range b.Labels {
+	//    labels[k] = v
+	//}
+	//labels[LabelName] = "horusctl"
+	//labels[LabelRole] = "backup"
+	//labels[LabelBackupTool] = "restic"
+	//labels[LabelPartOf] = types.DefaultOperatorName
+	//for k, v := range b.Annotations {
+	//    annotations[k] = v
+	//}
 
 	successJobLimit := new(int32)
 	failedJobLimit := new(int32)
 	*successJobLimit, *failedJobLimit = 3, 3
 	cronjob := &batchv1.CronJob{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        "backup" + "-" + b.Name,
-			Namespace:   b.Namespace,
-			Labels:      labels,
-			Annotations: annotations,
+			Name:      "backup" + "-" + b.Name,
+			Namespace: b.Namespace,
+			//Labels:      labels,
+			//Annotations: annotations,
 		},
 		Spec: batchv1.CronJobSpec{
 			Schedule:                   b.Spec.Schedule,
@@ -217,22 +210,23 @@ func (r *BackupReconciler) cronjobForBackup(b *storagev1alpha1.Backup) *batchv1.
 			JobTemplate: batchv1.JobTemplateSpec{
 				Spec: batchv1.JobSpec{
 					Template: corev1.PodTemplateSpec{
-						ObjectMeta: metav1.ObjectMeta{
-							Labels: labels,
-						},
+						//ObjectMeta: metav1.ObjectMeta{
+						//    Labels: labels,
+						//},
 						Spec: corev1.PodSpec{
 							RestartPolicy:      corev1.RestartPolicyNever,
 							ServiceAccountName: types.DefaultServiceAccountName,
 							Containers: []corev1.Container{
 								{
-									Name:  "horusctl",
-									Image: "hybfkuf/horusctl:latest",
-									Command: []string{
-										"horusctl",
-										"--log-level", b.Spec.LogLevel,
-										"--log-format", b.Spec.LogFormat,
+									Name:    "horusctl",
+									Image:   "hybfkuf/horusctl:latest",
+									Command: []string{"horusctl"},
+									Args: []string{
+										fmt.Sprintf("--log-level=%s", b.Spec.LogLevel),
+										fmt.Sprintf("--log-format=%s", b.Spec.LogFormat),
 										"backup",
-										"--namespace", b.GetNamespace(), b.Spec.BackupFrom.Name,
+										fmt.Sprintf("--namespace=%s", b.GetNamespace()),
+										b.Spec.BackupFrom.Name,
 									},
 									Env: []corev1.EnvVar{
 										{
@@ -248,8 +242,10 @@ func (r *BackupReconciler) cronjobForBackup(b *storagev1alpha1.Backup) *batchv1.
 			},
 		},
 	}
-	cronjob.Annotations[types.AnnotationCreatedTime] = time.Now().Format(time.RFC3339)
+	//cronjob.Annotations[types.AnnotationCreatedTime] = time.Now().Format(time.RFC3339)
+
 	ctrl.SetControllerReference(b, cronjob, r.Scheme)
+	labels.Set(cronjob, types.LabelPairPartOf, types.LabelPairNoIstioSiecar)
 
 	return cronjob
 }
@@ -262,8 +258,8 @@ func (r *BackupReconciler) serviceAccountForBackup(b *storagev1alpha1.Backup) *c
 			Namespace: b.GetNamespace(),
 		},
 	}
-	labels.Set(serviceAccount, types.LabelPairPartOf)
 	ctrl.SetControllerReference(b, serviceAccount, r.Scheme)
+	labels.Set(serviceAccount, types.LabelPairPartOf)
 	return serviceAccount
 }
 
