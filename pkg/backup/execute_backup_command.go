@@ -18,7 +18,7 @@ import (
 
 // executeBackupCommand
 // clusterName as the argument of flag --host.
-func executeBackupCommand(backupObj *storagev1alpha1.Backup, execPod *corev1.Pod, pvc string, meta pvdataMeta, storage string) (time.Duration, error) {
+func executeBackupCommand(backupObj *storagev1alpha1.Backup, execPod *corev1.Pod, pvc string, meta pvdataMeta) (time.Duration, error) {
 	beginTime := time.Now()
 	operatorNamespace := util.GetOperatorNamespace()
 	podHandler.ResetNamespace(operatorNamespace)
