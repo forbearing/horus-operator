@@ -15,7 +15,7 @@ import (
 func createBackup2nfsDeployment(backupObj *storagev1alpha1.Backup, meta pvdataMeta) (*corev1.Pod, time.Duration, error) {
 	beginTime := time.Now()
 
-	deployName := backup2nfsName + "-" + meta.nodeName + "-" + backupObj.GetName()
+	deployName := backup2nfsName + "-" + backupObj.GetName() + "-" + meta.nodeName
 	operatorNamespace := util.GetOperatorNamespace()
 	backup2nfsBytes := []byte(fmt.Sprintf(
 		// the deployment template

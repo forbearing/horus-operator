@@ -21,8 +21,10 @@ import (
 	"time"
 
 	storagev1alpha1 "github.com/forbearing/horus-operator/apis/storage/v1alpha1"
+	"github.com/forbearing/horus-operator/controllers/common"
 	"github.com/forbearing/horus-operator/pkg/types"
 	"github.com/forbearing/k8s/cronjob"
+	"github.com/forbearing/k8s/util/labels"
 	"github.com/go-logr/logr"
 	"github.com/sirupsen/logrus"
 	batchv1 "k8s.io/api/batch/v1"
@@ -34,6 +36,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
 
 var (
@@ -51,6 +54,7 @@ type BackupReconciler struct {
 //+kubebuilder:rbac:groups=storage.hybfkuf.io,resources=backups/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=storage.hybfkuf.io,resources=backups/finalizers,verbs=update
 //+kubebuilder:rbac:groups=batchv1,resources=cronjobs,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -103,12 +107,36 @@ func (r *BackupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	// handle cronjob
 	// ====================
 
+	// get the serviceaccount resource
+	// Construct a serviceaccount object
+	serviceAccount := r.serviceAccountForBackup(backupObj)
+	namespacedName := apitypes.NamespacedName{Namespace: req.NamespacedName.Namespace, Name: types.DefaultServiceAccountName}
+	if err := r.Get(ctx, namespacedName, &corev1.ServiceAccount{}); err != nil {
+		if apierrors.IsNotFound(err) {
+			if err := r.Create(ctx, serviceAccount); err != nil {
+				logger.Error(err, "create cronjob failed")
+				return ctrl.Result{}, err
+			}
+			logger.Info("Successfully create serviceaccount/" + serviceAccount.GetName())
+			return ctrl.Result{Requeue: true}, nil
+		} else {
+			logger.Error(err, "get service account failed")
+			return ctrl.Result{}, err
+		}
+	} else {
+		if r.Update(ctx, serviceAccount); err != nil {
+			logger.Error(err, "update service account failed")
+			return ctrl.Result{}, err
+		}
+		//logger.Info("Successfully update serviceaccount/" + serviceAccount.GetName())
+	}
+
 	// Construct a cronjob object
 	cronjobObject := r.cronjobForBackup(backupObj)
-	cj := &batchv1.CronJob{}
 	// get the cronjob resource
-	namespacedName := apitypes.NamespacedName{Namespace: req.NamespacedName.Namespace, Name: "backup" + "-" + req.NamespacedName.Name}
-	if err := r.Get(ctx, namespacedName, cj); err != nil {
+	namespacedName = apitypes.NamespacedName{Namespace: req.NamespacedName.Namespace, Name: "backup" + "-" + req.NamespacedName.Name}
+	//cj := &batchv1.CronJob{}
+	if err := r.Get(ctx, namespacedName, &batchv1.CronJob{}); err != nil {
 		// if cronjob resource not exits, create it.
 		if apierrors.IsNotFound(err) {
 			if err := r.Create(ctx, cronjobObject); err != nil {
@@ -128,9 +156,8 @@ func (r *BackupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		if err := r.Update(ctx, cronjobObject); err != nil {
 			logger.Error(err, "update cronjob failed")
 			return ctrl.Result{}, err
-		} else {
-			logger.Info("Successfully udpate cronjob/" + cronjobObject.GetName())
 		}
+		logger.Info("Successfully udpate cronjob/" + cronjobObject.GetName())
 	}
 
 	return ctrl.Result{}, nil
@@ -141,6 +168,11 @@ func (r *BackupReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&storagev1alpha1.Backup{}).
 		Owns(&batchv1.CronJob{}).
+		Owns(&corev1.ServiceAccount{}).
+		WithEventFilter(predicate.Or(
+			common.BackupPredicate(),
+			common.ServiceAccountPredicate(),
+		)).
 		Complete(r)
 }
 
@@ -190,16 +222,16 @@ func (r *BackupReconciler) cronjobForBackup(b *storagev1alpha1.Backup) *batchv1.
 						},
 						Spec: corev1.PodSpec{
 							RestartPolicy:      corev1.RestartPolicyNever,
-							ServiceAccountName: "horusctl",
+							ServiceAccountName: types.DefaultServiceAccountName,
 							Containers: []corev1.Container{
 								{
 									Name:  "horusctl",
 									Image: "hybfkuf/horusctl:latest",
 									Command: []string{
 										"horusctl",
-										"backup",
 										"--log-level", b.Spec.LogLevel,
 										"--log-format", b.Spec.LogFormat,
+										"backup",
 										"--namespace", b.GetNamespace(), b.Spec.BackupFrom.Name,
 									},
 									Env: []corev1.EnvVar{
@@ -220,6 +252,19 @@ func (r *BackupReconciler) cronjobForBackup(b *storagev1alpha1.Backup) *batchv1.
 	ctrl.SetControllerReference(b, cronjob, r.Scheme)
 
 	return cronjob
+}
+
+// serviceAccountForBackup
+func (r *BackupReconciler) serviceAccountForBackup(b *storagev1alpha1.Backup) *corev1.ServiceAccount {
+	serviceAccount := &corev1.ServiceAccount{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      types.DefaultServiceAccountName,
+			Namespace: b.GetNamespace(),
+		},
+	}
+	labels.Set(serviceAccount, types.LabelPairPartOf)
+	ctrl.SetControllerReference(b, serviceAccount, r.Scheme)
+	return serviceAccount
 }
 
 // handleFinalizer add finalizer when create/update Backup object, and remove
