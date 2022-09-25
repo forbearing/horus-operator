@@ -19,7 +19,7 @@ var (
 	podHandler = pod.NewOrDie(ctx, "", "")
 )
 
-func Snapshots(ctx context.Context, storage string, cluster []string, tags []string, cmdOutput io.Writer) error {
+func Snapshots(ctx context.Context, storage types.Storage, cluster []string, tags []string, cmdOutput io.Writer) error {
 	var (
 		err     error
 		execPod *corev1.Pod
