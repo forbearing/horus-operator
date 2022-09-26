@@ -1,12 +1,12 @@
 apiVersion: storage.hybfkuf.io/v1alpha1
 kind: Backup
 metadata:
-  name: nginx-ds
+  name: nginx-deploy
 spec:
   schedule: "*/1 * * * *"
   backupFrom:
-    resource: daemonset
-    name: nginx-ds
+    resource: deployment
+    name: nginx-deploy
   backupTo:
     nfs:
       server: 10.250.16.21
@@ -21,5 +21,7 @@ spec:
   timeout: 10m
   cluster: mycluster
   credentialName: horus-credential
-  logLevel: debug
-  logFormat: text
+  logLevel: info
+  logFormat: json
+  #logLevel: debug
+  #logFormat: text
