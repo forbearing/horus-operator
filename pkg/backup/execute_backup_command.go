@@ -2,6 +2,7 @@ package backup
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -12,29 +13,27 @@ import (
 	"github.com/forbearing/horus-operator/pkg/types"
 	"github.com/forbearing/horus-operator/pkg/util"
 	"github.com/forbearing/restic"
-	"github.com/sirupsen/logrus"
+	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 )
 
 // executeBackupCommand
 // clusterName as the argument of flag --host.
-func executeBackupCommand(backupObj *storagev1alpha1.Backup, execPod *corev1.Pod, pvc string, meta pvdataMeta) (time.Duration, error) {
-	beginTime := time.Now()
+func executeBackupCommand(backupObj *storagev1alpha1.Backup, execPod *corev1.Pod, pvc string, meta pvdataMeta) error {
+	beginTime := time.Now().UTC()
+	defer func() {
+		costedTime = time.Now().UTC().Sub(beginTime)
+	}()
+
 	operatorNamespace := util.GetOperatorNamespace()
 	podHandler.ResetNamespace(operatorNamespace)
-	logger := logrus.WithFields(logrus.Fields{
-		"Component":         "execute",
-		"OperatorNamespace": operatorNamespace,
-		"Node":              meta.nodeName,
-	})
 
 	if len(meta.pvdir) == 0 {
-		logger.Debug("persistentvolume directory is empty, skip backup")
-		return time.Now().Sub(beginTime), nil
+		return errors.New("persistentvolume directory is empty, skip backup")
 	}
 	if len(meta.pvname) == 0 {
-		logger.Debug("persistentvolume name is empty, skip backup")
-		return time.Now().Sub(beginTime), nil
+		return errors.New("persistentvolume name is empty, skip backup")
+
 	}
 	clusterName := backupObj.Spec.Cluster
 	if len(clusterName) == 0 {
@@ -63,14 +62,13 @@ func executeBackupCommand(backupObj *storagev1alpha1.Backup, execPod *corev1.Pod
 		logger.Debug(cmdInitRepo)
 		// if `restic init` failed, the next backup task wil not be continue.
 		if err := podHandler.ExecuteWithStream(execPod.GetName(), "", strings.Split(cmdInitRepo, " "), os.Stdin, io.Discard, io.Discard); err != nil {
-			logger.Fatal("restic init failed")
-			return time.Now().Sub(beginTime), nil
+			return errors.New("restic init failed")
 		}
 	}
 	logger.Debug(cmdBackup)
 	if err := podHandler.WithNamespace(operatorNamespace).ExecuteWithStream(execPod.GetName(), "", strings.Split(cmdBackup, " "), os.Stdin, io.Discard, io.Discard); err != nil {
-		logger.Errorf("restic backup pvc/%s failed, maybe the directory/file of %s do not exist in k8s node", pvc, pvpath)
+		return fmt.Errorf("restic backup pvc/%s failed, maybe the directory/file of %s do not exist in k8s node", pvc, pvpath)
 	}
 
-	return time.Now().Sub(beginTime), nil
+	return nil
 }

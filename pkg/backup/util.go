@@ -10,14 +10,13 @@ import (
 	storagev1alpha1 "github.com/forbearing/horus-operator/apis/storage/v1alpha1"
 	"github.com/forbearing/horus-operator/pkg/types"
 	"github.com/forbearing/k8s/deployment"
-	"github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 )
 
-// createAndGetRunningPod creates the deployment and get its any running status pod.
+// filterRunningPod creates the deployment and get its any running status pod.
 // The namespace determine which namespace the deployment object deploy to.
-func createAndGetRunningPod(namespace string, deployData interface{}) (*corev1.Pod, error) {
+func filterRunningPod(namespace string, deployData interface{}) (*corev1.Pod, error) {
 	depHandler.ResetNamespace(namespace)
 	rsHandler.ResetNamespace(namespace)
 	podHandler.ResetNamespace(namespace)
@@ -51,14 +50,12 @@ func createAndGetRunningPod(namespace string, deployData interface{}) (*corev1.P
 		}
 		return podObj, nil
 	}
-	err = fmt.Errorf("not found running pod for deployment/%s", deployObj.GetName())
-	logrus.Error(err)
-	return nil, err
+	return nil, fmt.Errorf("not found running pod for deployment/%s", deployObj.GetName())
 }
 
-// createAndGetRunningPod2 creates the deployment and get its any running status pod.
+// filterRunningPod2 creates the deployment and get its any running status pod.
 // The namespace determine which namespace the deployment object deploy to.
-func createAndGetRunningPod2(namespace string, deployData interface{}) (*corev1.Pod, error) {
+func filterRunningPod2(namespace string, deployData interface{}) (*corev1.Pod, error) {
 	depHandler.ResetNamespace(namespace)
 	rsHandler.ResetNamespace(namespace)
 	podHandler.ResetNamespace(namespace)
@@ -104,9 +101,7 @@ func createAndGetRunningPod2(namespace string, deployData interface{}) (*corev1.
 		}
 	}
 
-	err = fmt.Errorf("not found running pod for deployment/%s", deployObj.GetName())
-	logrus.Error(err)
-	return nil, err
+	return nil, fmt.Errorf("not found running pod for deployment/%s", deployObj.GetName())
 }
 
 // parseStorage parse the backup.spec.backupTo field to know where we should backup to

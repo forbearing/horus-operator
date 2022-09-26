@@ -10,12 +10,16 @@ import (
 	"github.com/forbearing/horus-operator/pkg/template"
 	"github.com/forbearing/horus-operator/pkg/types"
 	"github.com/forbearing/horus-operator/pkg/util"
+	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 )
 
-// createBackup2minioDepoyment backup persistentvolume data to minio object storage
-func createBackup2minioDepoyment(backupObj *storagev1alpha1.Backup, meta pvdataMeta) (*corev1.Pod, time.Duration, error) {
-	beginTime := time.Now()
+// createBackup2minioDepoyment create a deployment to backup persistentvolume data to minio object storage
+func createBackup2minioDepoyment(backupObj *storagev1alpha1.Backup, meta pvdataMeta) (*corev1.Pod, error) {
+	beginTime := time.Now().UTC()
+	defer func() {
+		costedTime = time.Now().UTC().Sub(beginTime)
+	}()
 
 	scheme := backupObj.Spec.BackupTo.MinIO.Endpoint.Scheme
 	address := backupObj.Spec.BackupTo.MinIO.Endpoint.Address
@@ -28,7 +32,7 @@ func createBackup2minioDepoyment(backupObj *storagev1alpha1.Backup, meta pvdataM
 	secHandler.ResetNamespace(operatorNamespace)
 	secObj, err := secHandler.Get(backupObj.Spec.CredentialName)
 	if err != nil {
-		return nil, time.Duration(0), fmt.Errorf("secret handler get secret error: %s", err.Error())
+		return nil, errors.Wrap(err, "secret handler get secret error")
 	}
 	accessKey := string(secObj.Data[secretMinioAccessKey])
 	secretKey := string(secObj.Data[secretMinioSecretKey])
@@ -41,7 +45,10 @@ func createBackup2minioDepoyment(backupObj *storagev1alpha1.Backup, meta pvdataM
 	// create minio bucket
 	client := minio.New(endpoint, accessKey, secretKey, false)
 	if err := minio.MakeBucket(client, bucket, ""); err != nil {
-		return nil, time.Duration(0), fmt.Errorf("make minio bucket error: %s", err.Error())
+		return nil, errors.Wrap(err, "make minio bucket error")
+	}
+	if err := minio.MakeFolder(client, folder); err != nil {
+		return nil, errors.Wrap(err, "make minio folder error")
 	}
 
 	deployName := backup2minioName + "-" + backupObj.GetName() + "-" + meta.nodeName
@@ -64,9 +71,9 @@ func createBackup2minioDepoyment(backupObj *storagev1alpha1.Backup, meta pvdataM
 		backupObj.Spec.TimeZone, resticRepo,
 		credentialName, credentialName, credentialName, credentialName, credentialName,
 	))
-	podObj, err := createAndGetRunningPod(operatorNamespace, backup2minioBytes)
+	podObj, err := filterRunningPod(operatorNamespace, backup2minioBytes)
 	if err != nil {
-		return nil, time.Now().Sub(beginTime), err
+		return nil, err
 	}
-	return podObj, time.Now().Sub(beginTime), nil
+	return podObj, nil
 }

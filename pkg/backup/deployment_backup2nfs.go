@@ -11,9 +11,12 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-// createBackup2nfsDeployment
-func createBackup2nfsDeployment(backupObj *storagev1alpha1.Backup, meta pvdataMeta) (*corev1.Pod, time.Duration, error) {
-	beginTime := time.Now()
+// createBackup2nfsDeployment create a deployment to backup persistentvolume data to nfs server.
+func createBackup2nfsDeployment(backupObj *storagev1alpha1.Backup, meta pvdataMeta) (*corev1.Pod, error) {
+	beginTime := time.Now().UTC()
+	defer func() {
+		costedTime = time.Now().UTC().Sub(beginTime)
+	}()
 
 	deployName := backup2nfsName + "-" + backupObj.GetName() + "-" + meta.nodeName
 	operatorNamespace := util.GetOperatorNamespace()
@@ -40,9 +43,9 @@ func createBackup2nfsDeployment(backupObj *storagev1alpha1.Backup, meta pvdataMe
 		// deployment.spec.template.volumes
 		// the volumes mounted by pod
 		backupObj.Spec.BackupTo.NFS.Server, backupObj.Spec.BackupTo.NFS.Path))
-	podObj, err := createAndGetRunningPod(operatorNamespace, backup2nfsBytes)
+	podObj, err := filterRunningPod(operatorNamespace, backup2nfsBytes)
 	if err != nil {
-		return nil, time.Now().Sub(beginTime), err
+		return nil, err
 	}
-	return podObj, time.Now().Sub(beginTime), nil
+	return podObj, nil
 }

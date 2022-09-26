@@ -2,13 +2,11 @@ package backup
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
 	storagev1alpha1 "github.com/forbearing/horus-operator/apis/storage/v1alpha1"
 	"github.com/forbearing/horus-operator/pkg/types"
-	"github.com/forbearing/horus-operator/pkg/util"
 	"github.com/forbearing/k8s/daemonset"
 	"github.com/forbearing/k8s/deployment"
 	"github.com/forbearing/k8s/dynamic"
@@ -18,6 +16,7 @@ import (
 	"github.com/forbearing/k8s/replicaset"
 	"github.com/forbearing/k8s/secret"
 	"github.com/forbearing/k8s/statefulset"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -89,24 +88,23 @@ var (
 
 var (
 	ErrResourceType = errors.New("Backup.spec.backupFrom.resource field value must be pod, deployment, statefulset or daemonset")
+	logger          = logrus.WithFields(logrus.Fields{})
+	costedTime      time.Duration
 )
 
-// Do
-func Do(ctx context.Context, backupObjNS, backupObjName string) error {
+// Do start to backup k8s pod/deployment/statefulset/daemonset defined in Backup object
+// namespace is the k8s resource namespace
+// name is the k8s resource name
+func Do(ctx context.Context, namespace, name string) error {
 	beginTime := time.Now()
-	operatorNamespace := util.GetOperatorNamespace()
-	dynHandler.ResetNamespace(backupObjNS)
-	logger := logrus.WithFields(logrus.Fields{
-		"Component":         "Backup",
-		"OperatorNamespace": operatorNamespace,
-	})
+	dynHandler.ResetNamespace(namespace)
 
 	gvk := schema.GroupVersionKind{
 		Group:   storagev1alpha1.GroupVersion.Group,
 		Version: storagev1alpha1.GroupVersion.Version,
 		Kind:    types.KindBackup,
 	}
-	unstructObj, err := dynHandler.WithGVK(gvk).Get(backupObjName)
+	unstructObj, err := dynHandler.WithGVK(gvk).Get(name)
 	if err != nil {
 		logger.Errorf("dynamic handler get Backup object failed: %s", err.Error())
 		return err
@@ -119,14 +117,15 @@ func Do(ctx context.Context, backupObjNS, backupObjName string) error {
 
 	backupFrom := backupObj.Spec.BackupFrom
 	logger.WithFields(logrus.Fields{
-		"Namespace": backupObj.GetNamespace(),
+		"Name":      backupObj.GetName(),
 		"Resource":  backupFrom.Resource,
+		"Namespace": backupObj.GetNamespace(),
 	})
 
 	// ==============================
 	//  prepare pvc and pv metadata
 	// ==============================
-	pvcpvMap, costedTime, err := getPvcpvMap(ctx, backupObj)
+	pvcpvMap, err := getPvcpvMap(ctx, backupObj)
 	if err != nil {
 		logger.Error(err)
 		return err
@@ -139,7 +138,7 @@ func Do(ctx context.Context, backupObjNS, backupObjName string) error {
 	for pvc, meta := range pvcpvMap {
 		for _, storage := range parseStorage(backupObj) {
 			if err := BackupFactory(storage)(backupObj, pvc, meta); err != nil {
-				logger.Errorf("Backup to %s failed:", storage)
+				logger.WithField("Cost", costedTime.String()).Errorf("Backup to %s failed: %v", storage, err)
 				return err
 			}
 		}
@@ -151,7 +150,12 @@ func Do(ctx context.Context, backupObjNS, backupObjName string) error {
 }
 
 // getPvcpvMap backup the k8s resource defined in Backup object to nfs storage.
-func getPvcpvMap(ctx context.Context, backupObj *storagev1alpha1.Backup) (map[string]pvdataMeta, time.Duration, error) {
+func getPvcpvMap(ctx context.Context, backupObj *storagev1alpha1.Backup) (map[string]pvdataMeta, error) {
+	beginTime := time.Now().UTC()
+	defer func() {
+		costedTime = time.Now().UTC().Sub(beginTime)
+	}()
+
 	var (
 		err        error
 		podObjList []*corev1.Pod
@@ -167,7 +171,6 @@ func getPvcpvMap(ctx context.Context, backupObj *storagev1alpha1.Backup) (map[st
 		pvcpvMap = make(map[string]pvdataMeta)
 	)
 
-	beginTime := time.Now()
 	podHandler.ResetNamespace(backupObj.GetNamespace())
 	depHandler.ResetNamespace(backupObj.GetNamespace())
 	rsHandler.ResetNamespace(backupObj.GetNamespace())
@@ -187,37 +190,37 @@ func getPvcpvMap(ctx context.Context, backupObj *storagev1alpha1.Backup) (map[st
 		if err != nil {
 			// if the Pod resource not found, skip backup
 			if apierrors.IsNotFound(err) {
-				return nil, time.Duration(0), fmt.Errorf("pod/%s not found in namespace %s, skip backup", backupFrom.Name, namespace)
+				return nil, fmt.Errorf("pod/%s not found in namespace %s, skip backup", backupFrom.Name, namespace)
 			}
-			return nil, time.Duration(0), fmt.Errorf("pod handler get pod error: %s", err.Error())
+			return nil, errors.Wrap(err, "pod handler get pod failed")
 		}
 		podObjList = append(podObjList, podObj)
 	case storagev1alpha1.DeploymentResource:
 		logger.Infof("Start Backup deployment/%s", backupFrom.Name)
 		if podObjList, err = depHandler.GetPods(backupFrom.Name); err != nil {
 			if apierrors.IsNotFound(err) {
-				return nil, time.Duration(0), fmt.Errorf("deployment/%s not found in namespace %s, skip backup", backupFrom.Name, namespace)
+				return nil, fmt.Errorf("deployment/%s not found in namespace %s, skip backup", backupFrom.Name, namespace)
 			}
-			return nil, time.Duration(0), fmt.Errorf("deployment handler get pod error: %s", err.Error())
+			return nil, errors.Wrap(err, "deployment handler get pod failed")
 		}
 	case storagev1alpha1.StatefulSetResource:
 		logger.Infof("Start Backup statefulset/%s", backupFrom.Name)
 		if podObjList, err = stsHandler.GetPods(backupFrom.Name); err != nil {
 			if apierrors.IsNotFound(err) {
-				return nil, time.Duration(0), fmt.Errorf("statefulset/%s not found in namespace %s, skip backup", backupFrom.Name, namespace)
+				return nil, fmt.Errorf("statefulset/%s not found in namespace %s, skip backup", backupFrom.Name, namespace)
 			}
-			return nil, time.Duration(0), fmt.Errorf("statefulset handler get pod error: %s", err.Error())
+			return nil, errors.Wrap(err, "statefulset handler get pod failed")
 		}
 	case storagev1alpha1.DaemonSetResource:
 		logger.Infof("Start Backup daemonset/%s", backupFrom.Name)
 		if podObjList, err = dsHandler.GetPods(backupFrom.Name); err != nil {
 			if apierrors.IsNotFound(err) {
-				return nil, time.Duration(0), fmt.Errorf("daemonset/%s not found in namespace %s, skip backup", backupFrom.Name, namespace)
+				return nil, fmt.Errorf("daemonset/%s not found in namespace %s, skip backup", backupFrom.Name, namespace)
 			}
-			return nil, time.Duration(0), fmt.Errorf("daemonset handler get pod error: %s", err.Error())
+			return nil, errors.Wrap(err, "daemonset handler get pod failed")
 		}
 	default:
-		return nil, time.Duration(0), fmt.Errorf(ErrResourceType.Error())
+		return nil, ErrResourceType
 	}
 	// podObjList contains all pods that managed/owned by the Deployment, StatefulSet or DaemonSet.
 	// we iterate over each pod to get its mounted persistentvolumeclaim(aka pvc),
@@ -245,16 +248,16 @@ func getPvcpvMap(ctx context.Context, backupObj *storagev1alpha1.Backup) (map[st
 		meta := pvdataMeta{}
 		var nodeName, podUID string
 		if nodeName, err = podHandler.GetNodeName(podObj); err != nil {
-			return nil, time.Duration(0), fmt.Errorf("pod handler get pod's node name error: %s", err.Error())
+			return nil, errors.Wrap(err, "pod handler get pod's node name failed")
 		}
 		if podUID, err = podHandler.GetUID(podObj); err != nil {
-			return nil, time.Duration(0), fmt.Errorf("pod handler get pod's uid error: %s", err.Error())
+			return nil, errors.Wrap(err, "pod handler get pod's uid failed")
 		}
 
 		// 2. get volumeSource, pvname, set volumeSource, nodeName, podName, podUID, pvname
 		pvcList, err := podHandler.GetPVC(podObj)
 		if err != nil {
-			return nil, time.Duration(0), fmt.Errorf("pod handler get persistentvolumeclaim error: %s", err.Error())
+			return nil, errors.Wrap(err, "pod handler get persistentvolumeclaim failed")
 		}
 		logger.Debugf("The persistentvolumeclaims mounted by pod/%s are: %v", podObj.Name, pvcList)
 		for _, pvc := range pvcList {
@@ -286,8 +289,8 @@ func getPvcpvMap(ctx context.Context, backupObj *storagev1alpha1.Backup) (map[st
 		var pvdir string
 		for _, pvc := range pvcList {
 			meta := pvcpvMap[pvc]
-			if pvdir, costedTime, err = createFindpvdirDeployment(backupObj, meta); err != nil {
-				return nil, time.Duration(0), fmt.Errorf("create deployment/%s error: %s", findpvdirName+"-"+meta.nodeName, err.Error())
+			if pvdir, err = createFindpvdirDeployment(backupObj, meta); err != nil {
+				return nil, fmt.Errorf("create deployment/%s error: %s", findpvdirName+"-"+meta.nodeName, err.Error())
 			}
 			logger.WithField("Cost", costedTime.String()).Infof("Found pvc/%s in pod/%s", pvc, podObj.GetName())
 			if len(pvdir) == 0 {
@@ -302,12 +305,12 @@ func getPvcpvMap(ctx context.Context, backupObj *storagev1alpha1.Backup) (map[st
 	// If the length of pvcpvMap is zero, it's means that no persistentvolumeclaim mounted
 	// by the backup target resource, skip backup.
 	if len(pvcpvMap) == 0 {
-		return nil, time.Duration(0), fmt.Errorf("There is no pvc mounted by the %s/%s, skip backup", backupFrom.Resource, backupFrom.Name)
+		return nil, fmt.Errorf("There is no pvc mounted by the %s/%s, skip backup", backupFrom.Resource, backupFrom.Name)
 	}
 	// output pvcpvMap for debug
 	for pvc, meta := range pvcpvMap {
 		logger.Debugf("%v: %v", pvc, meta)
 	}
 
-	return pvcpvMap, time.Now().Sub(beginTime), nil
+	return pvcpvMap, nil
 }

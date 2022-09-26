@@ -12,18 +12,18 @@ import (
 	"github.com/forbearing/horus-operator/pkg/template"
 	"github.com/forbearing/horus-operator/pkg/types"
 	"github.com/forbearing/horus-operator/pkg/util"
-	"github.com/sirupsen/logrus"
+	"github.com/pkg/errors"
 )
 
 // createFindpvdirDeployment
-func createFindpvdirDeployment(backupObj *storagev1alpha1.Backup, meta pvdataMeta) (string, time.Duration, error) {
-	beginTime := time.Now()
+func createFindpvdirDeployment(backupObj *storagev1alpha1.Backup, meta pvdataMeta) (string, error) {
+	beginTime := time.Now().UTC()
+	defer func() {
+		costedTime = time.Now().UTC().Sub(beginTime)
+	}()
+
 	operatorNamespace := util.GetOperatorNamespace()
 	podHandler.ResetNamespace(operatorNamespace)
-	logger := logrus.WithFields(logrus.Fields{
-		"Component":         findpvdirName,
-		"OperatorNamespace": operatorNamespace,
-	})
 
 	deployName := findpvdirName + "-" + backupObj.GetName() + "-" + meta.nodeName
 	findpvdirBytes := []byte(fmt.Sprintf(
@@ -43,9 +43,9 @@ func createFindpvdirDeployment(backupObj *storagev1alpha1.Backup, meta pvdataMet
 		// deployment.spec.template.spec.containers.env
 		// the environment variables passed to pods.
 		backupObj.Spec.TimeZone))
-	execPod, err := createAndGetRunningPod(operatorNamespace, findpvdirBytes)
+	execPod, err := filterRunningPod(operatorNamespace, findpvdirBytes)
 	if err != nil {
-		return "", time.Now().Sub(beginTime), err
+		return "", err
 	}
 
 	// if persistentvolume volume source is hostPath or local, the returned value
@@ -57,15 +57,15 @@ func createFindpvdirDeployment(backupObj *storagev1alpha1.Backup, meta pvdataMet
 	case types.VolumeHostPath:
 		pvObj, err := pvHandler.Get(meta.pvname)
 		if err != nil {
-			return "", time.Now().Sub(beginTime), fmt.Errorf("persistentvolume handler get persistentvolume error: %s", err.Error())
+			return "", errors.Wrap(err, "persistentvolume handler get persistentvolume failed")
 		}
-		return pvObj.Spec.HostPath.Path, time.Now().Sub(beginTime), nil
+		return pvObj.Spec.HostPath.Path, nil
 	case types.VolumeLocal:
 		pvObj, err := pvHandler.Get(meta.pvname)
 		if err != nil {
-			return "", time.Now().Sub(beginTime), fmt.Errorf("persistentvolume handler get persistentvolume error: %s", err.Error())
+			return "", errors.Wrap(err, "persistentvolume handler get persistentvolume failed")
 		}
-		return pvObj.Spec.Local.Path, time.Now().Sub(beginTime), nil
+		return pvObj.Spec.Local.Path, nil
 	}
 	logger.Debugf("executing command %v to find persistentvolume data in pod %s", cmdFindpvdir, execPod.GetName())
 
@@ -74,7 +74,7 @@ func createFindpvdirDeployment(backupObj *storagev1alpha1.Backup, meta pvdataMet
 	cmdOutput := new(bytes.Buffer)
 	for i := 1; i <= 12; i++ {
 		if err := podHandler.ExecuteWithStream(execPod.GetName(), "", cmdFindpvdir, os.Stdin, cmdOutput, io.Discard); err != nil {
-			return "", time.Now().Sub(beginTime), fmt.Errorf("%s find the persistentvolume data directory failed: %s", findpvdirName, err.Error())
+			return "", errors.Wrapf(err, "%s find the persistentvolume data directory failed", findpvdirName)
 		}
 		if len(strings.TrimSpace(cmdOutput.String())) != 0 {
 			break
@@ -83,5 +83,5 @@ func createFindpvdirDeployment(backupObj *storagev1alpha1.Backup, meta pvdataMet
 		time.Sleep(time.Second * 5)
 	}
 	logger.Debugf("the persistentvolume data path is: %s", strings.TrimSpace(cmdOutput.String()))
-	return strings.TrimSpace(cmdOutput.String()), time.Now().Sub(beginTime), nil
+	return strings.TrimSpace(cmdOutput.String()), nil
 }

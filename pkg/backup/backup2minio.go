@@ -53,13 +53,13 @@ func Backup2MinIO(backupObj *storagev1alpha1.Backup, pvc string, meta pvdataMeta
 
 	var costedTime time.Duration
 	var execPod *corev1.Pod
-	if execPod, costedTime, err = createBackup2minioDepoyment(backupObj, meta); err != nil {
+	if execPod, err = createBackup2minioDepoyment(backupObj, meta); err != nil {
 		return err
 	}
 	logger.WithFields(logrus.Fields{"Cost": costedTime.String()}).Debugf("create deployment/%s", backup2minioName+"-"+meta.nodeName)
 
 	// execute restic command to backup persistentvolume data to remote storage within the pod.
-	if costedTime, err = executeBackupCommand(backupObj, execPod, pvc, meta); err != nil {
+	if err = executeBackupCommand(backupObj, execPod, pvc, meta); err != nil {
 		return err
 	}
 	costedTime = time.Now().Sub(beginTime)
