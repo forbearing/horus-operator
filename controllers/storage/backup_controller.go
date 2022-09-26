@@ -23,8 +23,8 @@ import (
 	storagev1alpha1 "github.com/forbearing/horus-operator/apis/storage/v1alpha1"
 	"github.com/forbearing/horus-operator/controllers/common"
 	"github.com/forbearing/horus-operator/pkg/types"
+	"github.com/forbearing/horus-operator/pkg/util"
 	"github.com/forbearing/k8s/cronjob"
-	"github.com/forbearing/k8s/util/labels"
 	"github.com/go-logr/logr"
 	"github.com/sirupsen/logrus"
 	batchv1 "k8s.io/api/batch/v1"
@@ -77,11 +77,10 @@ func (r *BackupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	// ====================
 	// handle cronjob
 	// ====================
-
-	// get the serviceaccount resource
-	// Construct a serviceaccount object
+	// Construct a serviceaccount object.
 	serviceAccount := r.serviceAccountForBackup(backupObj)
 	namespacedName := apitypes.NamespacedName{Namespace: req.NamespacedName.Namespace, Name: types.DefaultServiceAccountName}
+	// get the serviceaccount resource.
 	if err := r.Get(ctx, namespacedName, &corev1.ServiceAccount{}); err != nil {
 		if apierrors.IsNotFound(err) {
 			if err := r.Create(ctx, serviceAccount); err != nil {
@@ -102,11 +101,13 @@ func (r *BackupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		//logger.Info("Successfully update serviceaccount/" + serviceAccount.GetName())
 	}
 
-	// Construct a cronjob object
+	// ====================
+	// handle cronjob
+	// ====================
+	// Construct a cronjob object.
 	cronjobObject := r.cronjobForBackup(backupObj)
-	// get the cronjob resource
 	namespacedName = apitypes.NamespacedName{Namespace: req.NamespacedName.Namespace, Name: "backup" + "-" + req.NamespacedName.Name}
-	//cj := &batchv1.CronJob{}
+	// get the cronjob resource.
 	if err := r.Get(ctx, namespacedName, &batchv1.CronJob{}); err != nil {
 		// if cronjob resource not exits, create it.
 		if apierrors.IsNotFound(err) {
@@ -150,19 +151,6 @@ func (r *BackupReconciler) SetupWithManager(mgr ctrl.Manager) error {
 // cronjobForBackup construct a *batch1.CronJob resource with the same namespace
 // and name as *storagev1alpha1.Backup.
 func (r *BackupReconciler) cronjobForBackup(b *storagev1alpha1.Backup) *batchv1.CronJob {
-	//labels := make(map[string]string)
-	//annotations := make(map[string]string)
-	//for k, v := range b.Labels {
-	//    labels[k] = v
-	//}
-	//labels[LabelName] = "horusctl"
-	//labels[LabelRole] = "backup"
-	//labels[LabelBackupTool] = "restic"
-	//labels[LabelPartOf] = types.DefaultOperatorName
-	//for k, v := range b.Annotations {
-	//    annotations[k] = v
-	//}
-
 	successJobLimit := new(int32)
 	failedJobLimit := new(int32)
 	*successJobLimit, *failedJobLimit = 3, 3
@@ -170,8 +158,6 @@ func (r *BackupReconciler) cronjobForBackup(b *storagev1alpha1.Backup) *batchv1.
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "backup" + "-" + b.Name,
 			Namespace: b.Namespace,
-			//Labels:      labels,
-			//Annotations: annotations,
 		},
 		Spec: batchv1.CronJobSpec{
 			Schedule:                   b.Spec.Schedule,
@@ -181,9 +167,6 @@ func (r *BackupReconciler) cronjobForBackup(b *storagev1alpha1.Backup) *batchv1.
 			JobTemplate: batchv1.JobTemplateSpec{
 				Spec: batchv1.JobSpec{
 					Template: corev1.PodTemplateSpec{
-						//ObjectMeta: metav1.ObjectMeta{
-						//    Labels: labels,
-						//},
 						Spec: corev1.PodSpec{
 							RestartPolicy:      corev1.RestartPolicyNever,
 							ServiceAccountName: types.DefaultServiceAccountName,
@@ -216,7 +199,7 @@ func (r *BackupReconciler) cronjobForBackup(b *storagev1alpha1.Backup) *batchv1.
 	//cronjob.Annotations[types.AnnotationCreatedTime] = time.Now().Format(time.RFC3339)
 
 	ctrl.SetControllerReference(b, cronjob, r.Scheme)
-	labels.Set(cronjob, types.LabelPairPartOf, types.LabelPairNoIstioSiecar)
+	util.WithRecommendedLabels(cronjob)
 
 	return cronjob
 }
@@ -230,7 +213,7 @@ func (r *BackupReconciler) serviceAccountForBackup(b *storagev1alpha1.Backup) *c
 		},
 	}
 	ctrl.SetControllerReference(b, serviceAccount, r.Scheme)
-	labels.Set(serviceAccount, types.LabelPairPartOf)
+	util.WithRecommendedLabels(serviceAccount)
 	return serviceAccount
 }
 

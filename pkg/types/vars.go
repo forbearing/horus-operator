@@ -28,11 +28,8 @@ var (
 	AnnotationUpdatedTime   = "hybfkuf.io/updatedAt"
 	AnnotationRestartedTime = "hybfkuf.io/restartedAt"
 
-	LabelPartOf     = "app.kubernetes.io/part-of"
-	LabelName       = "app.kubernetes.io/name"
-	LabelRole       = "app.kubernetes.io/role"
-	LabelBackupTool = "app.kubernetes.io/backup-tool"
-	LabelPairPartOf = LabelPartOf + "=" + DefaultOperatorName
+	LabelPairPartOf    = "app.kubernetes.io/part-of=horus"
+	LabelPairManagedBy = "app.kubernetes.io/managed-by=horus-operator"
 )
 
 var (

@@ -1,5 +1,5 @@
 # horus-operator
-<img src="docs/pics/horus-eye.jpeg" alt="horus-eye" style="zoom:50%;" />
+<img src="docs/logos/horus-eye.jpeg" alt="horus-eye" style="zoom:50%;" />
 
 An operator that uses the restic backup tools to Backup/Restore/Migration from k8s PVC to S3/Minio/Ceph/NFS.
 

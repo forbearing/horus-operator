@@ -58,7 +58,7 @@ func Snapshots(ctx context.Context, storage types.Storage, cluster []string, tag
 	cmdSnapshot := res.Command(restic.Snapshots{Tag: tags, Host: cluster}).String()
 
 	logrus.Debugf(`execute command "%s" within "pod/%s"`, cmdSnapshot, execPod.GetName())
-	if err := podHandler.ExecuteWithStream(execPod.GetName(), "", strings.Split(cmdSnapshot, " "), os.Stdin, cmdOutput, cmdOutput); err != nil {
+	if err := podHandler.ExecuteWithStream(execPod.GetName(), "", strings.Split(cmdSnapshot, " "), os.Stdin, cmdOutput, io.Discard); err != nil {
 		logrus.Errorf(`pod handler execute command "%s" wthin pod/"%s" failed`, cmdSnapshot, execPod.GetName())
 		return err
 	}
