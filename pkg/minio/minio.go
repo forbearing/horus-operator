@@ -19,7 +19,8 @@ func New(endpoint, accessKeyID, secretAccessKey string, useSSL bool) *minio.Clie
 	return minioClient
 }
 
-func MakeBucket(client *minio.Client, bucketName string, location string) error {
+// MakeBucket
+func MakeBucket(client *minio.Client, name string, location string) error {
 	//endpoint := "10.250.16.21:9000"
 	//accessKeyID := "minioadmin"
 	//secretAccessKey := "minioadmin"
@@ -28,17 +29,22 @@ func MakeBucket(client *minio.Client, bucketName string, location string) error 
 	ctx := context.TODO()
 
 	var err error
-	if err = client.MakeBucket(ctx, bucketName, minio.MakeBucketOptions{Region: location}); err != nil {
+	if err = client.MakeBucket(ctx, name, minio.MakeBucketOptions{Region: location}); err != nil {
 		// Check to see if we already own this bucket (which happens if you run this twice)
-		exists, errBucketExists := client.BucketExists(ctx, bucketName)
+		exists, errBucketExists := client.BucketExists(ctx, name)
 		if errBucketExists == nil && exists {
-			//logrus.Infof("We already own %s", bucketName)
+			//logrus.Infof("We already own %s", name)
 		} else {
 			logrus.Fatal(err)
 			return err
 		}
 	} else {
-		//logrus.Infof("Successfully created %s", bucketName)
+		//logrus.Infof("Successfully created %s", name)
 	}
+	return nil
+}
+
+// MakeFolder
+func MakeFolder(client *minio.Client, name string) error {
 	return nil
 }
