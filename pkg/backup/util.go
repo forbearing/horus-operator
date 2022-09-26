@@ -51,8 +51,9 @@ func createAndGetRunningPod(namespace string, deployData interface{}) (*corev1.P
 		}
 		return podObj, nil
 	}
-	logrus.Errorf("not found running pod for deploymnt/%s", deployObj.GetName())
-	return nil, fmt.Errorf("not found running pod for deployment/%s", deployObj.GetName())
+	err = fmt.Errorf("not found running pod for deployment/%s", deployObj.GetName())
+	logrus.Error(err)
+	return nil, err
 }
 
 // createAndGetRunningPod2 creates the deployment and get its any running status pod.
@@ -99,11 +100,13 @@ func createAndGetRunningPod2(namespace string, deployData interface{}) (*corev1.
 	for i := range podsObj {
 		podObj = podsObj[i]
 		if podObj.Status.Phase == corev1.PodRunning {
-			break
+			return podObj, nil
 		}
 	}
 
-	return podObj, nil
+	err = fmt.Errorf("not found running pod for deployment/%s", deployObj.GetName())
+	logrus.Error(err)
+	return nil, err
 }
 
 // parseStorage parse the backup.spec.backupTo field to know where we should backup to
