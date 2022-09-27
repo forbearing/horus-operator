@@ -57,13 +57,13 @@ func backup2NFS(backupObj *storagev1alpha1.Backup, pvc string, meta pvdataMeta) 
 	if execPod, err = createBackup2nfsDeployment(backupObj, meta); err != nil {
 		return err
 	}
-	logger.WithFields(logrus.Fields{"Cost": costedTime.String()}).Debugf("create deployment/%s", backup2nfsName+"-"+meta.nodeName)
+	logger.WithFields(logrus.Fields{"cost": costedTime.String()}).Debugf("create deployment/%s", backup2nfsName+"-"+meta.nodeName)
 
 	// execute restic command to backup persistentvolume data to remote storage within the pod.
 	if err = executeBackupCommand(backupObj, execPod, pvc, meta); err != nil {
 		return err
 	}
 	costedTime = time.Now().Sub(beginTime)
-	logger.WithFields(logrus.Fields{"Cost": costedTime.String()}).Infof("Successfully backup pvc/%s", pvc)
+	logger.WithFields(logrus.Fields{"cost": costedTime.String()}).Infof("Successfully backup pvc/%s", pvc)
 	return nil
 }

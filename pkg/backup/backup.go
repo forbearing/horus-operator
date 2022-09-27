@@ -124,7 +124,7 @@ func Do(ctx context.Context, namespace, name string) error {
 		"namespace": namespace,
 		"resource":  backupFrom.Resource,
 	})
-	logger.WithField("Cost", time.Now().Sub(begin).String()).Infof("Successfully get Backup object")
+	logger.WithField("cost", time.Now().Sub(begin).String()).Infof("Successfully get Backup object")
 
 	// ==============================
 	//  2. prepare pvc and pv metadata
@@ -136,7 +136,7 @@ func Do(ctx context.Context, namespace, name string) error {
 		logger.Error(err)
 		return err
 	}
-	logger.WithField("Cost", time.Now().Sub(begin).String()).Infof("Successfully prepare pvc and pv metadata")
+	logger.WithField("cost", time.Now().Sub(begin).String()).Infof("Successfully prepare pvc and pv metadata")
 
 	// ==============================
 	// 3. backup to remote storage
@@ -149,12 +149,12 @@ func Do(ctx context.Context, namespace, name string) error {
 				logger.Error(err)
 				return err
 			}
-			logger.WithField("Cost", costedTime.String()).Infof("Successfully backup pvc/%s", pvc)
+			logger.WithField("cost", costedTime.String()).Infof("Successfully backup pvc/%s", pvc)
 		}
-		logger.WithField("Cost", time.Now().Sub(begin).String()).Infof("Successfully backup all pvc to %s", storage)
+		logger.WithField("cost", time.Now().Sub(begin).String()).Infof("Successfully backup all pvc to %s", storage)
 	}
 
-	logger.WithField("Cost", time.Now().Sub(begin).String()).
+	logger.WithField("cost", time.Now().Sub(begin).String()).
 		Infof("Successfully backup %s/%s", backupFrom.Resource, backupFrom.Name)
 	return err
 }
@@ -289,7 +289,7 @@ func getPvcpvMap(ctx context.Context, backupObj *storagev1alpha1.Backup) (map[st
 			if pvdir, err = createFindpvdirDeployment(backupObj, meta); err != nil {
 				return nil, fmt.Errorf("create deployment/%s error: %s", findpvdirName+"-"+meta.nodeName, err.Error())
 			}
-			logger.WithField("Cost", costedTime.String()).Infof("Found pvc/%s in pod/%s", pvc, podObj.GetName())
+			logger.WithField("cost", costedTime.String()).Infof("Found pvc/%s in pod/%s", pvc, podObj.GetName())
 			if len(pvdir) == 0 {
 				logger.WithField("VolumeSource", meta.volumeSource).Warnf("PVC/%s data directory not found", pvc)
 				continue
