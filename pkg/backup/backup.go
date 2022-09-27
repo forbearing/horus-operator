@@ -96,41 +96,45 @@ var (
 // namespace is the k8s resource namespace
 // name is the k8s resource name
 func Do(ctx context.Context, namespace, name string) error {
+	// ==============================
+	// Dynamic handler get Backup object
+	// ==============================
 	beginTime := time.Now()
-	dynHandler.ResetNamespace(namespace)
-
 	gvk := schema.GroupVersionKind{
-		Group:   storagev1alpha1.GroupVersion.Group,
-		Version: storagev1alpha1.GroupVersion.Version,
+		Group:   types.GroupStorage,
+		Version: types.GroupVersionStorage.Version,
 		Kind:    types.KindBackup,
 	}
-	unstructObj, err := dynHandler.WithGVK(gvk).Get(name)
+	unstructObj, err := dynHandler.WithNamespace(namespace).WithGVK(gvk).Get(name)
 	if err != nil {
-		logger.Errorf("dynamic handler get Backup object failed: %s", err.Error())
+		err = errors.Wrapf(err, `dynamic handler get "%s,%s" object failed`, types.GroupVersionStorage, types.KindBackup)
+		logger.Error(err)
 		return err
 	}
 	backupObj := &storagev1alpha1.Backup{}
 	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(unstructObj.UnstructuredContent(), backupObj); err != nil {
-		logger.Errorf("convert unstructured object to Backup object failed: %s", err.Error())
+		err = errors.Wrapf(err, "convert unstructured object to %s object failed", types.ResourceBackup)
+		logger.Error(err)
 		return err
 	}
-
 	backupFrom := backupObj.Spec.BackupFrom
-	logger.WithFields(logrus.Fields{
+	logger = logger.WithFields(logrus.Fields{
 		"Name":      backupObj.GetName(),
 		"Resource":  backupFrom.Resource,
 		"Namespace": backupObj.GetNamespace(),
 	})
+	logger.WithField("Cost", time.Now().Sub(beginTime).String()).Infof("Successfully get Backup object")
 
 	// ==============================
-	//  prepare pvc and pv metadata
+	//  Prepare pvc and pv metadata
 	// ==============================
+	beginTime = time.Now()
 	pvcpvMap, err := getPvcpvMap(ctx, backupObj)
 	if err != nil {
 		logger.Error(err)
 		return err
 	}
-	logger.WithField("Cost", costedTime.String()).Infof("Successfully prepare pvc and pv metadata")
+	logger.WithField("Cost", time.Now().Sub(beginTime).String()).Infof("Successfully prepare pvc and pv metadata")
 
 	// ==============================
 	// Backup to remote storage
@@ -177,11 +181,6 @@ func getPvcpvMap(ctx context.Context, backupObj *storagev1alpha1.Backup) (map[st
 	stsHandler.ResetNamespace(backupObj.GetNamespace())
 	dsHandler.ResetNamespace(backupObj.GetNamespace())
 	pvcHandler.ResetNamespace(backupObj.GetNamespace())
-	logger := logrus.WithFields(logrus.Fields{
-		"Namespace": namespace,
-		"Name":      backupFrom.Name,
-		"Resource":  backupFrom.Resource,
-	})
 
 	switch backupFrom.Resource {
 	case storagev1alpha1.PodResource:
@@ -285,7 +284,6 @@ func getPvcpvMap(ctx context.Context, backupObj *storagev1alpha1.Backup) (map[st
 		//   1.deployment should mount the k8s node root direcotry(is "/", not "/root")
 		//   2.deployment usually deploy in the same namespace to operator
 		//   3.deployment.spec.template.spec.nodeName should same to the pod,
-		var costedTime time.Duration
 		var pvdir string
 		for _, pvc := range pvcList {
 			meta := pvcpvMap[pvc]
