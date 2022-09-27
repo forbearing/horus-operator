@@ -115,7 +115,7 @@ func Do(ctx context.Context, namespace, name string) error {
 		begin := time.Now()
 		for pvc, meta := range pvcpvMap {
 			if err := backupFactory(storage)(backupObj, pvc, meta); err != nil {
-				err = errors.Wrapf(err, "Backup %s to %s failed", pvc, storage)
+				err = errors.Wrapf(err, "Backup pvc/%s to %s failed", pvc, storage)
 				logger.Error(err)
 				return err
 			}
