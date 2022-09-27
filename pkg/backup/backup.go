@@ -117,11 +117,12 @@ func Do(ctx context.Context, namespace, name string) error {
 		logger.Error(err)
 		return err
 	}
+	// setup logger
 	backupFrom := backupObj.Spec.BackupFrom
 	logger = logger.WithFields(logrus.Fields{
-		"Name":      backupObj.GetName(),
-		"Resource":  backupFrom.Resource,
-		"Namespace": backupObj.GetNamespace(),
+		"name":      backupObj.GetName(),
+		"resource":  backupFrom.Resource,
+		"namespace": backupObj.GetNamespace(),
 	})
 	logger.WithField("Cost", time.Now().Sub(beginTime).String()).Infof("Successfully get Backup object")
 
