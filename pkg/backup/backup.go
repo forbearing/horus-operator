@@ -261,13 +261,13 @@ func getPvcpvMap(ctx context.Context, backupObj *storagev1alpha1.Backup) (map[st
 			// get the persistentvolume name claimed by persistentvolumeclaim resource.
 			pvname, err := pvcHandler.GetPV(pvc)
 			if err != nil {
-				logger.Errorf("persistentvolumeclaim get pv error: %s", err.Error())
+				logger.Errorf("pvc handler get pv error: %s", err.Error())
 				continue
 			}
 			// get the persistentvolume backend volume type, such as "nfs", "csi", "hostPath", "local", etc.
 			volumeSource, err := pvHandler.GetVolumeSource(pvname)
 			if err != nil {
-				logger.Errorf("persistentvolume handler get volume source error: %s", err.Error())
+				logger.Errorf("pv handler get volume source error: %s", err.Error())
 				continue
 			}
 			meta.volumeSource = volumeSource
