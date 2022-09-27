@@ -24,36 +24,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
-// The structured object for pv metadata is named pvdataMeta.
-// pvdataMeta.volumeSource:
-//   every persistentvolume(aka pv) has a backend valume, and the volme source
-//   could be "csi", "nfs" or "hostPath"(further more see pv.spec). pvdataMeta.volumeSource
-//   value contains the pv backend volume source type, such as csi, "nfs", "rbd" or "hostPath".
-// pvdataMeta.nodeName:
-//   nodeName indicates the k8s node name that the pod is running. the nodeName
-//   is required by deployment/findpvdir to find the the persistentvolume data directory
-//   path in the k8s node.
-// pvdataMeta.podName:
-//   The name of the deployment/statefulset/daemonset owned pod that we should to backup.
-//   To backup persistentvolume data to nfs/minio/s3 reqests it.
-// pvdataMeta.podUID
-//   The UID name of the deployment/statefulset/daemonset owned pod that we should to backup.
-//   To find the persistentvolume data directory path in k8s node requests it.
-// pvdataMeta.pvdir
-//   The persistentvolume data directory path in k8s node thtat found by deployment/findpvdir.
-// pvdataMeta.pvname
-//   The persistentvolume claimed by persistentvolumeclaim for podis mounts.
-//   pod mounted pvc -> pvc claims pv -> k8s admin create pv manually or created by storageclass automatically.
-//
-type pvdataMeta struct {
-	volumeSource string
-	nodeName     string
-	podName      string
-	podUID       string
-	pvdir        string
-	pvname       string
-}
-
 const (
 	resticRepo        = "/restic-repo"
 	resticPasswd      = "mypass"
@@ -157,6 +127,35 @@ func Do(ctx context.Context, namespace, name string) error {
 	logger.WithField("cost", time.Now().Sub(begin).String()).
 		Infof("Successfully backup %s/%s", backupFrom.Resource, backupFrom.Name)
 	return err
+}
+
+// The structured object for pv metadata is named pvdataMeta.
+// pvdataMeta.volumeSource:
+//   every persistentvolume(aka pv) has a backend valume, and the volme source
+//   could be "csi", "nfs" or "hostPath"(further more see pv.spec). pvdataMeta.volumeSource
+//   value contains the pv backend volume source type, such as csi, "nfs", "rbd" or "hostPath".
+// pvdataMeta.nodeName:
+//   nodeName indicates the k8s node name that the pod is running. the nodeName
+//   is required by deployment/findpvdir to find the the persistentvolume data directory
+//   path in the k8s node.
+// pvdataMeta.podName:
+//   The name of the deployment/statefulset/daemonset owned pod that we should to backup.
+//   To backup persistentvolume data to nfs/minio/s3 reqests it.
+// pvdataMeta.podUID
+//   The UID name of the deployment/statefulset/daemonset owned pod that we should to backup.
+//   To find the persistentvolume data directory path in k8s node requests it.
+// pvdataMeta.pvdir
+//   The persistentvolume data directory path in k8s node thtat found by deployment/findpvdir.
+// pvdataMeta.pvname
+//   The persistentvolume claimed by persistentvolumeclaim for podis mounts.
+//   pod mounted pvc -> pvc claims pv -> k8s admin create pv manually or created by storageclass automatically.
+type pvdataMeta struct {
+	volumeSource string
+	nodeName     string
+	podName      string
+	podUID       string
+	pvdir        string
+	pvname       string
 }
 
 // getPvcpvMap backup the k8s resource defined in Backup object to nfs storage.
