@@ -137,7 +137,7 @@ func Do(ctx context.Context, namespace, name string) error {
 	// ==============================
 	for pvc, meta := range pvcpvMap {
 		for _, storage := range parseStorage(backupObj) {
-			if err := BackupFactory(storage)(backupObj, pvc, meta); err != nil {
+			if err := backupFactory(storage)(backupObj, pvc, meta); err != nil {
 				logger.WithField("Cost", costedTime.String()).Errorf("Backup to %s failed: %v", storage, err)
 				return err
 			}
