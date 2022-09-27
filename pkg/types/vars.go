@@ -6,10 +6,14 @@ import (
 )
 
 var (
-	DefaultNamespace         = "default"
-	DefaultOperatorName      = "horus-operator"
-	DefaultOperatorNamespace = "horus-operator-system"
-	DefaultClusterName       = "kubernetes"
+	DefaultNamespace           = "default"
+	DefaultClusterName         = "kubernetes"
+	DefaultOperatorName        = "horus-operator"
+	DefaultOperatorNamespace   = "horus-operator-system"
+	DefaultBackupJobNamespace  = "horus-operator-jobs"
+	DefaultRestoreJobNamespace = DefaultBackupJobNamespace
+	DefaultCloneJobNamespace   = DefaultBackupJobNamespace
+	DefaultMigrationNamespace  = DefaultBackupJobNamespace
 
 	DefaultBackupFinalizerName    = "backup.storage.hybfkuf.io/finalizer"
 	DefaultRestoreFinalizerName   = "restore.storage.hybfkuf.io/finalizer"
@@ -22,7 +26,7 @@ var (
 	DefaultCloneTimeout     = time.Hour
 	DefaultMigrationTimeout = time.Hour
 
-	DefaultServiceAccountName = "horusctl"
+	DefaultServiceAccountName = "horus-jobs"
 
 	AnnotationCreatedTime   = "hybfkuf.io/createdAt"
 	AnnotationUpdatedTime   = "hybfkuf.io/updatedAt"
