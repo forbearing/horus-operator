@@ -27,19 +27,19 @@ func backupFactory(storage types.Storage) backupFunc {
 		// ==============================
 		switch storage {
 		case types.StorageNFS:
-			logger.WithField("Storage", "NFS")
+			logger = logger.WithField("storage", "NFS")
 		case types.StorageMinIO:
-			logger.WithField("Storage", "MinIO")
+			logger = logger.WithField("storage", "MinIO")
 		case types.StorageS3:
-			logger.WithField("Storage", "S3")
+			logger = logger.WithField("storage", "S3")
 		case types.StorageCephFS:
-			logger.WithField("Storage", "CephFS")
+			logger = logger.WithField("storage", "CephFS")
 		case types.StorageRClone:
-			logger.WithField("Storage", "RClone")
+			logger = logger.WithField("storage", "RClone")
 		case types.StorageSFTP:
-			logger.WithField("Storage", "SFTP")
+			logger = logger.WithField("storage", "SFTP")
 		case types.StorageRestServer:
-			logger.WithField("Storage", "RestServer")
+			logger = logger.WithField("storage", "RestServer")
 		default:
 			return fmt.Errorf("not support storage type: %s", storage)
 		}
