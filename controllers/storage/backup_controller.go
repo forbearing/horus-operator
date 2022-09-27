@@ -195,7 +195,6 @@ func (r *BackupReconciler) cronjobForBackup(b *storagev1alpha1.Backup) *batchv1.
 			},
 		},
 	}
-	//cronjob.Annotations[types.AnnotationCreatedTime] = time.Now().Format(time.RFC3339)
 
 	ctrl.SetControllerReference(b, cronjob, r.Scheme)
 	util.WithRecommendedLabels(cronjob)
@@ -261,4 +260,16 @@ func (r *BackupReconciler) deleteExternalResources(backupObj *storagev1alpha1.Ba
 	// multiple times for same object.
 
 	return nil
+}
+
+// withNamespace set the object namespace to the provided namespace.
+// if the provided namespace is not same to the object original namespace,
+// it will remove .metadata.ownerReferences field.
+func (r *BackupReconciler) withNamespace(object client.Object, namespace string) client.Object {
+	originalNamespace := object.GetNamespace()
+	if namespace != originalNamespace {
+		object.SetNamespace(namespace)
+		object.SetOwnerReferences(nil)
+	}
+	return object
 }
