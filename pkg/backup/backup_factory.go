@@ -80,12 +80,12 @@ func backupFactory(storage types.Storage) backupFunc {
 			if execPod, err = createBackup2nfsDeployment(backupObj, meta); err != nil {
 				return err
 			}
-			logger.WithFields(logrus.Fields{"cost": costedTime.String()}).Debugf("create deployment/%s", backup2nfsName+"-"+meta.nodeName)
+			logger.WithFields(logrus.Fields{"cost": costedTime.String()}).Debugf("create deployment/%s", theDeployName(backup2nfsName, backupObj, meta))
 		case types.StorageMinIO:
 			if execPod, err = createBackup2minioDepoyment(backupObj, meta); err != nil {
 				return err
 			}
-			logger.WithFields(logrus.Fields{"cost": costedTime.String()}).Debugf("create deployment/%s", backup2minioName+"-"+meta.nodeName)
+			logger.WithFields(logrus.Fields{"cost": costedTime.String()}).Debugf("create deployment/%s", theDeployName(backup2nfsName, backupObj, meta))
 		}
 
 		// execute restic command to backup persistentvolume data to remote storage within the pod.
