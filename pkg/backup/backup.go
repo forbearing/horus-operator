@@ -77,13 +77,13 @@ func Do(ctx context.Context, namespace, name string) error {
 	}
 	unstructObj, err := dynHandler.WithNamespace(namespace).WithGVK(gvk).Get(name)
 	if err != nil {
-		err = errors.Wrapf(err, `dynamic handler get "%s,%s" object failed`, types.GroupVersionStorage, types.KindBackup)
+		err = errors.Wrapf(err, `dynamic handler get "%s.%s" resource object failed`, types.ResourceBackup, types.GroupStorage)
 		logger.Error(err)
 		return err
 	}
 	backupObj := &storagev1alpha1.Backup{}
 	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(unstructObj.UnstructuredContent(), backupObj); err != nil {
-		err = errors.Wrapf(err, "convert unstructured object to %s object failed", types.ResourceBackup)
+		err = errors.Wrapf(err, "convert unstructured object to %s.%s resource object failed", types.ResourceBackup, types.GroupStorage)
 		logger.Error(err)
 		return err
 	}
