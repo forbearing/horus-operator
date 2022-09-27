@@ -21,6 +21,6 @@ var (
 	GroupStorage    = storagev1alpha1.GroupVersion.Group
 	GroupNetworking = networkingv1alpha1.GroupVersion.Group
 
-	GroupVersionStorage = storagev1alpha1.GroupVersion
+	GroupVersionStorage    = storagev1alpha1.GroupVersion
 	GroupVersionNetworking = networkingv1alpha1.GroupVersion
 )
