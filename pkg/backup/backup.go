@@ -120,9 +120,9 @@ func Do(ctx context.Context, namespace, name string) error {
 	// setup logger
 	backupFrom := backupObj.Spec.BackupFrom
 	logger = logger.WithFields(logrus.Fields{
-		"name":      backupObj.GetName(),
+		"name":      name,
+		"namespace": namespace,
 		"resource":  backupFrom.Resource,
-		"namespace": backupObj.GetNamespace(),
 	})
 	logger.WithField("Cost", time.Now().Sub(begin).String()).Infof("Successfully get Backup object")
 
@@ -130,6 +130,7 @@ func Do(ctx context.Context, namespace, name string) error {
 	//  2. prepare pvc and pv metadata
 	// ==============================
 	begin = time.Now()
+	logger.Infof("Start backup %s/%s", backupFrom.Resource, backupFrom.Name)
 	pvcpvMap, err := getPvcpvMap(ctx, backupObj)
 	if err != nil {
 		logger.Error(err)
@@ -171,15 +172,14 @@ func getPvcpvMap(ctx context.Context, backupObj *storagev1alpha1.Backup) (map[st
 		namespace  = backupObj.GetNamespace()
 		backupFrom = backupObj.Spec.BackupFrom
 	)
-	podHandler.ResetNamespace(backupObj.GetNamespace())
-	depHandler.ResetNamespace(backupObj.GetNamespace())
-	rsHandler.ResetNamespace(backupObj.GetNamespace())
-	stsHandler.ResetNamespace(backupObj.GetNamespace())
-	dsHandler.ResetNamespace(backupObj.GetNamespace())
-	pvcHandler.ResetNamespace(backupObj.GetNamespace())
+	podHandler.ResetNamespace(namespace)
+	depHandler.ResetNamespace(namespace)
+	rsHandler.ResetNamespace(namespace)
+	stsHandler.ResetNamespace(namespace)
+	dsHandler.ResetNamespace(namespace)
+	pvcHandler.ResetNamespace(namespace)
 	switch backupFrom.Resource {
 	case storagev1alpha1.PodResource:
-		logger.Infof("Start Backup pod/%s", backupFrom.Name)
 		podObj, err := podHandler.Get(backupFrom.Name)
 		if err != nil {
 			// if the Pod resource not found, skip backup
@@ -190,7 +190,6 @@ func getPvcpvMap(ctx context.Context, backupObj *storagev1alpha1.Backup) (map[st
 		}
 		podObjList = append(podObjList, podObj)
 	case storagev1alpha1.DeploymentResource:
-		logger.Infof("Start Backup deployment/%s", backupFrom.Name)
 		if podObjList, err = depHandler.GetPods(backupFrom.Name); err != nil {
 			if apierrors.IsNotFound(err) {
 				return nil, fmt.Errorf("deployment/%s not found in namespace %s, skip backup", backupFrom.Name, namespace)
@@ -198,7 +197,6 @@ func getPvcpvMap(ctx context.Context, backupObj *storagev1alpha1.Backup) (map[st
 			return nil, errors.Wrap(err, "deployment handler get pod failed")
 		}
 	case storagev1alpha1.StatefulSetResource:
-		logger.Infof("Start Backup statefulset/%s", backupFrom.Name)
 		if podObjList, err = stsHandler.GetPods(backupFrom.Name); err != nil {
 			if apierrors.IsNotFound(err) {
 				return nil, fmt.Errorf("statefulset/%s not found in namespace %s, skip backup", backupFrom.Name, namespace)
@@ -206,7 +204,6 @@ func getPvcpvMap(ctx context.Context, backupObj *storagev1alpha1.Backup) (map[st
 			return nil, errors.Wrap(err, "statefulset handler get pod failed")
 		}
 	case storagev1alpha1.DaemonSetResource:
-		logger.Infof("Start Backup daemonset/%s", backupFrom.Name)
 		if podObjList, err = dsHandler.GetPods(backupFrom.Name); err != nil {
 			if apierrors.IsNotFound(err) {
 				return nil, fmt.Errorf("daemonset/%s not found in namespace %s, skip backup", backupFrom.Name, namespace)
