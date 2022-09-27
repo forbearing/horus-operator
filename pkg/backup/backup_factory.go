@@ -10,11 +10,11 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-// BackupFunc
-type BackupFunc func(backupObj *storagev1alpha1.Backup, pvc string, meta pvdataMeta) error
+// backupFunc
+type backupFunc func(backupObj *storagev1alpha1.Backup, pvc string, meta pvdataMeta) error
 
-// BackupFactory
-func BackupFactory(storage types.Storage) BackupFunc {
+// backupFactory
+func backupFactory(storage types.Storage) backupFunc {
 	return func(backupObj *storagev1alpha1.Backup, pvc string, meta pvdataMeta) error {
 		// ==============================
 		// for backup to different storage.
