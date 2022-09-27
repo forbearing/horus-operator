@@ -261,13 +261,13 @@ func getPvcpvMap(ctx context.Context, backupObj *storagev1alpha1.Backup) (map[st
 			// get the persistentvolume name claimed by persistentvolumeclaim resource.
 			pvname, err := pvcHandler.GetPV(pvc)
 			if err != nil {
-				logger.Errorf("pvc handler get pv error: %s", err.Error())
+				logger.Errorf("pvc handler get pv failed: %s", err.Error())
 				continue
 			}
 			// get the persistentvolume backend volume type, such as "nfs", "csi", "hostPath", "local", etc.
 			volumeSource, err := pvHandler.GetVolumeSource(pvname)
 			if err != nil {
-				logger.Errorf("pv handler get volume source error: %s", err.Error())
+				logger.Errorf("pv handler get volume source failed: %s", err.Error())
 				continue
 			}
 			meta.volumeSource = volumeSource
@@ -286,7 +286,7 @@ func getPvcpvMap(ctx context.Context, backupObj *storagev1alpha1.Backup) (map[st
 		for _, pvc := range pvcList {
 			meta := pvcpvMap[pvc]
 			if pvdir, err = createFindpvdirDeployment(backupObj, meta); err != nil {
-				return nil, fmt.Errorf("create deployment/%s error: %s", findpvdirName+"-"+meta.nodeName, err.Error())
+				return nil, fmt.Errorf("create deployment/%s failed: %s", findpvdirName+"-"+meta.nodeName, err.Error())
 			}
 			logger.WithField("cost", costedTime.String()).Infof("Found pvc/%s in pod/%s", pvc, podObj.GetName())
 			if len(pvdir) == 0 {
