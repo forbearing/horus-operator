@@ -19,12 +19,14 @@ package storage
 import (
 	"context"
 	"fmt"
+	"os"
 
 	storagev1alpha1 "github.com/forbearing/horus-operator/apis/storage/v1alpha1"
 	"github.com/forbearing/horus-operator/controllers/common"
 	"github.com/forbearing/horus-operator/pkg/types"
 	"github.com/forbearing/horus-operator/pkg/util"
 	"github.com/forbearing/k8s/cronjob"
+	"github.com/forbearing/k8s/namespace"
 	"github.com/go-logr/logr"
 	"github.com/sirupsen/logrus"
 	batchv1 "k8s.io/api/batch/v1"
@@ -55,6 +57,7 @@ type BackupReconciler struct {
 //+kubebuilder:rbac:groups=storage.hybfkuf.io,resources=backups/finalizers,verbs=update
 //+kubebuilder:rbac:groups=batchv1,resources=cronjobs,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups="",resources=namespaces,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -79,7 +82,9 @@ func (r *BackupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	// ====================
 	// Construct a serviceaccount object.
 	serviceAccount := r.serviceAccountForBackup(backupObj)
-	namespacedName := apitypes.NamespacedName{Namespace: req.NamespacedName.Namespace, Name: types.DefaultServiceAccountName}
+	r.withNamespace(ctx, serviceAccount, types.DefaultBackupJobNamespace)
+	//namespacedName := apitypes.NamespacedName{Namespace: req.NamespacedName.Namespace, Name: types.DefaultServiceAccountName}
+	namespacedName := apitypes.NamespacedName{Namespace: types.DefaultBackupJobNamespace, Name: types.DefaultServiceAccountName}
 	// get the serviceaccount resource.
 	if err := r.Get(ctx, namespacedName, &corev1.ServiceAccount{}); err != nil {
 		if apierrors.IsNotFound(err) {
@@ -106,7 +111,9 @@ func (r *BackupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	// ====================
 	// Construct a cronjob object.
 	cronjobObject := r.cronjobForBackup(backupObj)
-	namespacedName = apitypes.NamespacedName{Namespace: req.NamespacedName.Namespace, Name: "backup" + "-" + req.NamespacedName.Name}
+	r.withNamespace(ctx, cronjobObject, types.DefaultBackupJobNamespace)
+	//namespacedName = apitypes.NamespacedName{Namespace: req.NamespacedName.Namespace, Name: "backup" + "-" + req.NamespacedName.Name}
+	namespacedName = apitypes.NamespacedName{Namespace: types.DefaultBackupJobNamespace, Name: "backup" + "-" + req.NamespacedName.Name}
 	// get the cronjob resource.
 	if err := r.Get(ctx, namespacedName, &batchv1.CronJob{}); err != nil {
 		// if cronjob resource not exits, create it.
@@ -263,12 +270,24 @@ func (r *BackupReconciler) deleteExternalResources(backupObj *storagev1alpha1.Ba
 }
 
 // withNamespace set the object namespace to the provided namespace.
-// if the provided namespace is not same to the object original namespace,
+// If the provided namespace is not same to the object original namespace,
 // it will remove .metadata.ownerReferences field.
-func (r *BackupReconciler) withNamespace(object client.Object, namespace string) client.Object {
+// If the namespace not exists, it will create it.
+func (r *BackupReconciler) withNamespace(ctx context.Context, object client.Object, name string) client.Object {
+	handler := namespace.NewOrDie(ctx, "")
+	nsObj := &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+		},
+	}
+	if _, err := handler.Apply(nsObj); err != nil {
+		r.Log.Error(err, "namespace handler apply namespace failed")
+		os.Exit(1)
+	}
+
 	originalNamespace := object.GetNamespace()
-	if namespace != originalNamespace {
-		object.SetNamespace(namespace)
+	if name != originalNamespace {
+		object.SetNamespace(name)
 		object.SetOwnerReferences(nil)
 	}
 	return object
