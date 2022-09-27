@@ -82,9 +82,9 @@ func (r *BackupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	// ====================
 	// Construct a serviceaccount object.
 	serviceAccount := r.serviceAccountForBackup(backupObj)
-	r.withNamespace(ctx, serviceAccount, types.DefaultBackupJobNamespace)
-	//namespacedName := apitypes.NamespacedName{Namespace: req.NamespacedName.Namespace, Name: types.DefaultServiceAccountName}
-	namespacedName := apitypes.NamespacedName{Namespace: types.DefaultBackupJobNamespace, Name: types.DefaultServiceAccountName}
+	//r.withNamespace(ctx, serviceAccount, types.DefaultBackupJobNamespace)
+	//namespacedName := apitypes.NamespacedName{Namespace: types.DefaultBackupJobNamespace, Name: types.DefaultServiceAccountName}
+	namespacedName := apitypes.NamespacedName{Namespace: req.NamespacedName.Namespace, Name: types.DefaultServiceAccountName}
 	// get the serviceaccount resource.
 	if err := r.Get(ctx, namespacedName, &corev1.ServiceAccount{}); err != nil {
 		if apierrors.IsNotFound(err) {
@@ -111,9 +111,9 @@ func (r *BackupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	// ====================
 	// Construct a cronjob object.
 	cronjobObject := r.cronjobForBackup(backupObj)
-	r.withNamespace(ctx, cronjobObject, types.DefaultBackupJobNamespace)
-	//namespacedName = apitypes.NamespacedName{Namespace: req.NamespacedName.Namespace, Name: "backup" + "-" + req.NamespacedName.Name}
-	namespacedName = apitypes.NamespacedName{Namespace: types.DefaultBackupJobNamespace, Name: "backup" + "-" + req.NamespacedName.Name}
+	//r.withNamespace(ctx, cronjobObject, types.DefaultBackupJobNamespace)
+	//namespacedName = apitypes.NamespacedName{Namespace: types.DefaultBackupJobNamespace, Name: "backup" + "-" + req.NamespacedName.Name}
+	namespacedName = apitypes.NamespacedName{Namespace: req.NamespacedName.Namespace, Name: "backup" + "-" + req.NamespacedName.Name}
 	// get the cronjob resource.
 	if err := r.Get(ctx, namespacedName, &batchv1.CronJob{}); err != nil {
 		// if cronjob resource not exits, create it.
@@ -157,9 +157,6 @@ func (r *BackupReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 // cronjobForBackup construct a *batch1.CronJob resource that owned/controlled by the Backup resource.
 func (r *BackupReconciler) cronjobForBackup(b *storagev1alpha1.Backup) *batchv1.CronJob {
-	successJobLimit := new(int32)
-	failedJobLimit := new(int32)
-	*successJobLimit, *failedJobLimit = 3, 3
 	cronjob := &batchv1.CronJob{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "backup" + "-" + b.Name,
@@ -168,8 +165,8 @@ func (r *BackupReconciler) cronjobForBackup(b *storagev1alpha1.Backup) *batchv1.
 		Spec: batchv1.CronJobSpec{
 			Schedule:                   b.Spec.Schedule,
 			ConcurrencyPolicy:          batchv1.ForbidConcurrent,
-			SuccessfulJobsHistoryLimit: successJobLimit,
-			FailedJobsHistoryLimit:     successJobLimit,
+			SuccessfulJobsHistoryLimit: &b.Spec.SuccessfulJobsHistoryLimit,
+			FailedJobsHistoryLimit:     &b.Spec.FailedJobsHistoryLimit,
 			JobTemplate: batchv1.JobTemplateSpec{
 				Spec: batchv1.JobSpec{
 					Template: corev1.PodTemplateSpec{
