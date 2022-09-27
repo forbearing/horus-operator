@@ -9,14 +9,14 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-// Backup2MinIO create deployment/backuptominio to backup every pvc volume data
+// backup2MinIO create deployment/backuptominio to backup every pvc volume data
 // there are two condition should meet.
 //   1.deployment mount the persistentvolumeclaim we should backup
 //   2.execute restic commmand to backup persistentvolumeclaim data
 //     - "restic list keys" check whether resitc repository exist
 //     - "restic init" initial a resitc repository when repository not exist.
 //     - "restic backup" backup the persistentvolume data to nfs storage.
-func Backup2MinIO(backupObj *storagev1alpha1.Backup, pvc string, meta pvdataMeta) error {
+func backup2MinIO(backupObj *storagev1alpha1.Backup, pvc string, meta pvdataMeta) error {
 	beginTime := time.Now()
 	logger := logrus.WithFields(logrus.Fields{
 		"Component": "Backup2MinIO",
