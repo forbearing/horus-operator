@@ -78,7 +78,7 @@ func (r *BackupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	}
 
 	// ====================
-	// handle serviceaccount
+	// reconcile serviceaccount
 	// ====================
 	// Construct a serviceaccount object.
 	serviceAccount := r.serviceAccountForBackup(backupObj)
@@ -107,7 +107,7 @@ func (r *BackupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	}
 
 	// ====================
-	// handle cronjob
+	// reconcile cronjob
 	// ====================
 	// Construct a cronjob object.
 	cronjobObject := r.cronjobForBackup(backupObj)
