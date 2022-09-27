@@ -14,6 +14,14 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
+// theDeployName return a standard deployment name.
+func theDeployName(name string, backupObj *storagev1alpha1.Backup, meta pvdataMeta) string {
+	if backupObj == nil {
+		return fmt.Sprintf("%s-%s", name, meta.nodeName)
+	}
+	return fmt.Sprintf("%s-%s-%s", name, meta.nodeName, backupObj.GetName())
+}
+
 // filterRunningPod creates the deployment and get its any running status pod.
 // The namespace determine which namespace the deployment object deploy to.
 func filterRunningPod(namespace string, deployData interface{}) (*corev1.Pod, error) {
