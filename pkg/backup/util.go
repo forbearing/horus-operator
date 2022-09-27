@@ -24,16 +24,16 @@ func filterRunningPod(namespace string, deployData interface{}) (*corev1.Pod, er
 	// 1.apply deployment
 	deployObj, err := depHandler.Apply(deployData)
 	if err != nil {
-		return nil, fmt.Errorf("deployment handler Apply error: %s", err.Error())
+		return nil, fmt.Errorf("deployment handler Apply failed: %s", err.Error())
 	}
 	// 2.block here and wait the deployment to be available and ready.
 	if err := depHandler.WaitReady(deployObj.GetName()); err != nil {
-		return nil, fmt.Errorf("deployment handler WaitReady %s error: %s", deployObj.GetName(), err.Error())
+		return nil, fmt.Errorf("deployment handler WaitReady %s failed: %s", deployObj.GetName(), err.Error())
 	}
 	// 3.get all pods object owned by the deployment.
 	podObjs, err := depHandler.GetPods(deployObj)
 	if err != nil {
-		return nil, fmt.Errorf("replicaset handler get %s all replicasets error: %s", deployObj.GetName(), err.Error())
+		return nil, fmt.Errorf("replicaset handler get %s all replicasets failed: %s", deployObj.GetName(), err.Error())
 	}
 	// 4.if the DeletionTimestamp of pod is zero/nil and return it.
 	//   running pods doesn't have DeletionTimestamp field.
@@ -63,18 +63,18 @@ func filterRunningPod2(namespace string, deployData interface{}) (*corev1.Pod, e
 	// 1.apply deployment
 	deployObj, err := depHandler.Apply(deployData)
 	if err != nil {
-		return nil, fmt.Errorf("deployment handler Apply error: %s", err.Error())
+		return nil, fmt.Errorf("deployment handler Apply failed: %s", err.Error())
 	}
 
 	// 2.block here and wait the deployment to be available and ready.
 	if err := depHandler.WaitReady(deployObj.GetName()); err != nil {
-		return nil, fmt.Errorf("deployment handler WaitReady %s error: %s", deployObj.GetName(), err.Error())
+		return nil, fmt.Errorf("deployment handler WaitReady %s failed: %s", deployObj.GetName(), err.Error())
 	}
 
 	// 3.get all replicasets object owned by the deployment.
 	rsObjList, err := depHandler.GetRS(deployObj)
 	if err != nil {
-		return nil, fmt.Errorf("replicaset handler get %s all replicasets error: %s", deployObj.GetName(), err.Error())
+		return nil, fmt.Errorf("replicaset handler get %s all replicasets failed: %s", deployObj.GetName(), err.Error())
 	}
 
 	var podsObj []*corev1.Pod
@@ -86,7 +86,7 @@ func filterRunningPod2(namespace string, deployData interface{}) (*corev1.Pod, e
 		if rsObj.Spec.Replicas != nil && *rsObj.Spec.Replicas > 0 {
 			// 5.get all pods object owned by the replicaset.
 			if podsObj, err = rsHandler.GetPods(rsObj); err != nil {
-				return nil, fmt.Errorf("pod handler get %s all pods error: %s", rsObj.GetName(), err.Error())
+				return nil, fmt.Errorf("pod handler get %s all pods failed: %s", rsObj.GetName(), err.Error())
 			}
 			break
 		}
