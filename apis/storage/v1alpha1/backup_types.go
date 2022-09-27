@@ -45,7 +45,7 @@ type BackupSpec struct {
 	// S3, Minio, Server, RestServer
 	BackupTo *BackupTo `json:"backupTo"`
 
-	// backup timeout
+	// Backup timeout
 	// +optional
 	Timeout metav1.Duration `json:"timeout"`
 
@@ -69,10 +69,21 @@ type BackupSpec struct {
 	// MINIO_SECRET_KEY:		minio secret key
 	CredentialName string `json:"credentialName"`
 
-	// LogLevel
+	// Log level for backup pvc, support "info", "debug", default to "text".
+	// +optional
 	LogLevel string `json:"logLevel"`
-	// LogFormat
+	// Log format for backup pvc, support "text", "json", default to "text".
+	// +optional
 	LogFormat string `json:"logFormat"`
+
+	// The number of successful finished jobs to retain. Value must be non-negative integer.
+	// Defaults to 3.
+	// +optional
+	SuccessfulJobsHistoryLimit int32 `json:"successfulJobsHistoryLimit"`
+	// The number of failed finished jobs to retain. Value must be non-negative integer.
+	// Defaults to 1.
+	// +optional
+	FailedJobsHistoryLimit int32 `json:"failedJobsHistoryLimit"`
 }
 
 // BackupFrom defines where the data should backup from
