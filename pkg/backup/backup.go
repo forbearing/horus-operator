@@ -144,7 +144,8 @@ func Do(ctx context.Context, namespace, name string) error {
 		begin := time.Now()
 		for pvc, meta := range pvcpvMap {
 			if err := backupFactory(storage)(backupObj, pvc, meta); err != nil {
-				logger.WithField("Cost", costedTime.String()).Errorf("Backup %s to %s failed: %v", pvc, storage, err)
+				err = errors.Wrapf(err, "Backup %s to %s failed", pvc, storage)
+				logger.Error(err)
 				return err
 			}
 			logger.WithField("Cost", costedTime.String()).Infof("Successfully backup pvc/%s", pvc)
@@ -167,25 +168,15 @@ func getPvcpvMap(ctx context.Context, backupObj *storagev1alpha1.Backup) (map[st
 	var (
 		err        error
 		podObjList []*corev1.Pod
-		backupFrom = backupObj.Spec.BackupFrom
 		namespace  = backupObj.GetNamespace()
-
-		// pvcpvMap 存在的意义: 不要重复备份同一个 pvc
-		// 因为有些 pvc  为 ReadWriteMany 模式, 当一个 deployment 下的多个 pod 同时
-		// 挂载了同一个 pvc, 默认会对这个 pvc 备份多次, 这完全没必要, 只需要备份一次即可
-		// pvc name 作为 key, pvdataMeta 作为 value
-		// 在这里只设置了 pv name
-		//
-		pvcpvMap = make(map[string]pvdataMeta)
+		backupFrom = backupObj.Spec.BackupFrom
 	)
-
 	podHandler.ResetNamespace(backupObj.GetNamespace())
 	depHandler.ResetNamespace(backupObj.GetNamespace())
 	rsHandler.ResetNamespace(backupObj.GetNamespace())
 	stsHandler.ResetNamespace(backupObj.GetNamespace())
 	dsHandler.ResetNamespace(backupObj.GetNamespace())
 	pvcHandler.ResetNamespace(backupObj.GetNamespace())
-
 	switch backupFrom.Resource {
 	case storagev1alpha1.PodResource:
 		logger.Infof("Start Backup pod/%s", backupFrom.Name)
@@ -246,6 +237,13 @@ func getPvcpvMap(ctx context.Context, backupObj *storagev1alpha1.Backup) (map[st
 	//    pod-c -> pvc-a -> pv-a
 	// pod-a, pod-b and pod-c mounted the same pvc and use the same pv and use the same volume data.
 	// To iterate every pod managed/owned by deployment/statefulset/daemonset may get the same pvc.
+
+	// pvcpvMap 存在的意义: 不要重复备份同一个 pvc
+	// 因为有些 pvc  为 ReadWriteMany 模式, 当一个 deployment 下的多个 pod 同时
+	// 挂载了同一个 pvc, 默认会对这个 pvc 备份多次, 这完全没必要, 只需要备份一次即可
+	// pvc name 作为 key, pvdataMeta 作为 value
+	// 在这里只设置了 pv name
+	pvcpvMap := make(map[string]pvdataMeta)
 	for _, podObj := range podObjList {
 		// 1. get nodeName, podUID
 		meta := pvdataMeta{}
