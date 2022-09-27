@@ -2,6 +2,7 @@ package backup
 
 import (
 	"fmt"
+	"time"
 
 	storagev1alpha1 "github.com/forbearing/horus-operator/apis/storage/v1alpha1"
 	"github.com/forbearing/horus-operator/pkg/types"
@@ -16,6 +17,11 @@ type backupFunc func(backupObj *storagev1alpha1.Backup, pvc string, meta pvdataM
 // backupFactory
 func backupFactory(storage types.Storage) backupFunc {
 	return func(backupObj *storagev1alpha1.Backup, pvc string, meta pvdataMeta) error {
+		beginTime := time.Now().UTC()
+		defer func() {
+			costedTime = time.Now().UTC().Sub(beginTime)
+		}()
+
 		// ==============================
 		// for backup to different storage.
 		// ==============================
@@ -86,7 +92,6 @@ func backupFactory(storage types.Storage) backupFunc {
 		if err = executeBackupCommand(backupObj, execPod, pvc, meta); err != nil {
 			return err
 		}
-		logger.WithFields(logrus.Fields{"Cost": costedTime.String()}).Infof("Successfully backup pvc/%s", pvc)
 		return nil
 	}
 }
