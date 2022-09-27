@@ -148,8 +148,7 @@ func (r *BackupReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-// cronjobForBackup construct a *batch1.CronJob resource with the same namespace
-// and name as *storagev1alpha1.Backup.
+// cronjobForBackup construct a *batch1.CronJob resource that owned/controlled by the Backup resource.
 func (r *BackupReconciler) cronjobForBackup(b *storagev1alpha1.Backup) *batchv1.CronJob {
 	successJobLimit := new(int32)
 	failedJobLimit := new(int32)
@@ -204,7 +203,7 @@ func (r *BackupReconciler) cronjobForBackup(b *storagev1alpha1.Backup) *batchv1.
 	return cronjob
 }
 
-// serviceAccountForBackup
+// serviceAccountForBackup construct a *corev1.ServiceAccount resource that owned/controlled by the Backup resource.
 func (r *BackupReconciler) serviceAccountForBackup(b *storagev1alpha1.Backup) *corev1.ServiceAccount {
 	serviceAccount := &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
