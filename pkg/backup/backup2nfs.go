@@ -9,7 +9,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-// Backup2NFS create deployment/backuptonfs to backup every pvc volume data.
+// backup2NFS create deployment/backuptonfs to backup every pvc volume data.
 // there are three condition should meet.
 //   1.deployment mount the persistentvolumeclaim we should backup
 //   2.deployment mount nfs storage as persistentvolumeclaim
@@ -17,7 +17,7 @@ import (
 //     - "restic list keys" check whether resitc repository exist
 //     - "restic init" initial a resitc repository when repository not exist.
 //     - "restic backup" backup the persistentvolume data to nfs storage.
-func Backup2NFS(backupObj *storagev1alpha1.Backup, pvc string, meta pvdataMeta) error {
+func backup2NFS(backupObj *storagev1alpha1.Backup, pvc string, meta pvdataMeta) error {
 	beginTime := time.Now()
 	logger := logrus.WithFields(logrus.Fields{
 		"Component": "Backup2NFS",
