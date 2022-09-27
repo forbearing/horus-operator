@@ -630,11 +630,18 @@ spec:
                   - name
                   type: object
                 type: array
+              failedJobsHistoryLimit:
+                description: The number of failed finished jobs to retain. Value must
+                  be non-negative integer. Defaults to 1.
+                format: int32
+                type: integer
               logFormat:
-                description: LogFormat
+                description: Log format for backup pvc, support "text", "json", default
+                  to "text".
                 type: string
               logLevel:
-                description: LogLevel
+                description: Log level for backup pvc, support "info", "debug", default
+                  to "text".
                 type: string
               retention:
                 description: The number of backup to be retained. Value must be non-negative
@@ -644,8 +651,13 @@ spec:
               schedule:
                 description: The schedule in Cron format, see https://en.wikipedia.org/wiki/Cron.
                 type: string
+              successfulJobsHistoryLimit:
+                description: The number of successful finished jobs to retain. Value
+                  must be non-negative integer. Defaults to 3.
+                format: int32
+                type: integer
               timeout:
-                description: backup timeout
+                description: Backup timeout
                 type: string
               timezone:
                 description: TimeZone
@@ -654,8 +666,6 @@ spec:
             - backupFrom
             - backupTo
             - credentialName
-            - logFormat
-            - logLevel
             - schedule
             type: object
           status:
