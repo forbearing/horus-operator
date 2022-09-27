@@ -97,9 +97,9 @@ var (
 // name is the k8s resource name
 func Do(ctx context.Context, namespace, name string) error {
 	// ==============================
-	// Dynamic handler get Backup object
+	// 1. dynamic handler get Backup object
 	// ==============================
-	beginTime := time.Now()
+	begin := time.Now()
 	gvk := schema.GroupVersionKind{
 		Group:   types.GroupStorage,
 		Version: types.GroupVersionStorage.Version,
@@ -124,33 +124,36 @@ func Do(ctx context.Context, namespace, name string) error {
 		"resource":  backupFrom.Resource,
 		"namespace": backupObj.GetNamespace(),
 	})
-	logger.WithField("Cost", time.Now().Sub(beginTime).String()).Infof("Successfully get Backup object")
+	logger.WithField("Cost", time.Now().Sub(begin).String()).Infof("Successfully get Backup object")
 
 	// ==============================
-	//  Prepare pvc and pv metadata
+	//  2. prepare pvc and pv metadata
 	// ==============================
-	beginTime = time.Now()
+	begin = time.Now()
 	pvcpvMap, err := getPvcpvMap(ctx, backupObj)
 	if err != nil {
 		logger.Error(err)
 		return err
 	}
-	logger.WithField("Cost", time.Now().Sub(beginTime).String()).Infof("Successfully prepare pvc and pv metadata")
+	logger.WithField("Cost", time.Now().Sub(begin).String()).Infof("Successfully prepare pvc and pv metadata")
 
 	// ==============================
-	// Backup to remote storage
+	// 3. backup to remote storage
 	// ==============================
-	for pvc, meta := range pvcpvMap {
-		for _, storage := range parseStorage(backupObj) {
+	for _, storage := range parseStorage(backupObj) {
+		begin := time.Now()
+		for pvc, meta := range pvcpvMap {
 			if err := backupFactory(storage)(backupObj, pvc, meta); err != nil {
-				logger.WithField("Cost", costedTime.String()).Errorf("Backup to %s failed: %v", storage, err)
+				logger.WithField("Cost", costedTime.String()).Errorf("Backup %s to %s failed: %v", pvc, storage, err)
 				return err
 			}
+			logger.WithField("Cost", costedTime.String()).Infof("Successfully backup pvc/%s", pvc)
 		}
+		logger.WithField("Cost", time.Now().Sub(begin).String()).Infof("Successfully backup all pvc to %s", storage)
 	}
 
-	logger.WithField("Cost", time.Now().Sub(beginTime).String()).
-		Infof("Successfully Backup %s/%s", backupFrom.Resource, backupFrom.Name)
+	logger.WithField("Cost", time.Now().Sub(begin).String()).
+		Infof("Successfully backup %s/%s", backupFrom.Resource, backupFrom.Name)
 	return err
 }
 
