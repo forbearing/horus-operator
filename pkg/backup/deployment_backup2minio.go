@@ -32,7 +32,7 @@ func createBackup2minioDepoyment(backupObj *storagev1alpha1.Backup, meta pvdataM
 	secHandler.ResetNamespace(operatorNamespace)
 	secObj, err := secHandler.Get(backupObj.Spec.CredentialName)
 	if err != nil {
-		return nil, errors.Wrap(err, "secret handler get secret error")
+		return nil, errors.Wrap(err, "secret handler get secret failed")
 	}
 	accessKey := string(secObj.Data[secretMinioAccessKey])
 	secretKey := string(secObj.Data[secretMinioSecretKey])
@@ -45,10 +45,10 @@ func createBackup2minioDepoyment(backupObj *storagev1alpha1.Backup, meta pvdataM
 	// create minio bucket
 	client := minio.New(endpoint, accessKey, secretKey, false)
 	if err := minio.MakeBucket(client, bucket, ""); err != nil {
-		return nil, errors.Wrap(err, "make minio bucket error")
+		return nil, errors.Wrap(err, "make minio bucket failed")
 	}
 	if err := minio.MakeFolder(client, folder); err != nil {
-		return nil, errors.Wrap(err, "make minio folder error")
+		return nil, errors.Wrap(err, "make minio folder failed")
 	}
 
 	deployName := theDeployName(backup2minioName, backupObj, meta)
