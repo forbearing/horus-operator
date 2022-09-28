@@ -18,6 +18,7 @@ package storage
 
 import (
 	"context"
+	"fmt"
 	"os"
 
 	storagev1alpha1 "github.com/forbearing/horus-operator/apis/storage/v1alpha1"
@@ -61,19 +62,33 @@ type BackupReconciler struct {
 //+kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups="",resources=namespaces,verbs=get;list;watch;create;update;patch;delete
 
+//// RBAC Management
+////+kubebuilder:rbac:groups=authorization.k8s.io,resources=roles,verbs=get;list;watch;create;update;patch;delete
+////+kubebuilder:rbac:groups=authorization.k8s.io,resources=rolebindings,verbs=get;list;watch;create;update;patch;delete
+////+kubebuilder:rbac:groups=authorization.k8s.io,resources=clusterroles,verbs=get;list;watch;create;update;patch;delete
+////+kubebuilder:rbac:groups=authorization.k8s.io,resources=clusterrolebindings,verbs=get;list;watch;create;update;patch;delete
+////+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=roles,verbs=get;list;watch;create;update;patch;delete
+////+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=rolebindings,verbs=get;list;watch;create;update;patch;delete
+////+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles,verbs=get;list;watch;create;update;patch;delete
+////+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterrolebindings,verbs=get;list;watch;create;update;patch;delete
+////+kubebuilder:rbac:groups=roles.rbac.authorization.k8s.io,resources=roles,verbs=get;list;watch;create;update;patch;delete
+////+kubebuilder:rbac:groups=roles.rbac.authorization.k8s.io,resources=rolebindings,verbs=get;list;watch;create;update;patch;delete
+////+kubebuilder:rbac:groups=roles.rbac.authorization.k8s.io,resources=clusterroles,verbs=get;list;watch;create;update;patch;delete
+////+kubebuilder:rbac:groups=roles.rbac.authorization.k8s.io,resources=clusterrolebindings,verbs=get;list;watch;create;update;patch;delete
+
 // RBAC Management
-//+kubebuilder:rbac:groups=authorization.k8s.io,resources=roles,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=authorization.k8s.io,resources=rolebindings,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=authorization.k8s.io,resources=clusterroles,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=authorization.k8s.io,resources=clusterrolebindings,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=roles,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=rolebindings,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterrolebindings,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=roles.rbac.authorization.k8s.io,resources=roles,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=roles.rbac.authorization.k8s.io,resources=rolebindings,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=roles.rbac.authorization.k8s.io,resources=clusterroles,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=roles.rbac.authorization.k8s.io,resources=clusterrolebindings,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=authorization.k8s.io,resources=roles,verbs=*
+//+kubebuilder:rbac:groups=authorization.k8s.io,resources=rolebindings,verbs=*
+//+kubebuilder:rbac:groups=authorization.k8s.io,resources=clusterroles,verbs=*
+//+kubebuilder:rbac:groups=authorization.k8s.io,resources=clusterrolebindings,verbs=*
+//+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=roles,verbs=*
+//+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=rolebindings,verbs=*
+//+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles,verbs=*
+//+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterrolebindings,verbs=*
+//+kubebuilder:rbac:groups=roles.rbac.authorization.k8s.io,resources=roles,verbs=*
+//+kubebuilder:rbac:groups=roles.rbac.authorization.k8s.io,resources=rolebindings,verbs=*
+//+kubebuilder:rbac:groups=roles.rbac.authorization.k8s.io,resources=clusterroles,verbs=*
+//+kubebuilder:rbac:groups=roles.rbac.authorization.k8s.io,resources=clusterrolebindings,verbs=*
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -122,59 +137,59 @@ func (r *BackupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		//logger.Info("Successfully update serviceaccount/" + serviceAccount.GetName())
 	}
 
-	//// =========================
-	//// reconcile ClusterRole
-	//// =========================
-	//// Construct a clusterrole object.
-	//clusterRole := r.clusterRoleForBackup(backupObj)
-	//namespacedName = apitypes.NamespacedName{Namespace: req.NamespacedName.Namespace, Name: "horusctl-role"}
-	//// get the clusterrole resource.
-	//if err := r.Get(ctx, namespacedName, &rbacv1.ClusterRole{}); err != nil {
-	//    if apierrors.IsNotFound(err) {
-	//        if err := r.Create(ctx, clusterRole); err != nil {
-	//            logger.Error(err, "create clusterrole failed")
-	//            return ctrl.Result{}, err
-	//        }
-	//        logger.Info("Successfully create clusterrole/" + clusterRole.GetName())
-	//        return ctrl.Result{Requeue: true}, nil
-	//    } else {
-	//        logger.Error(err, "get clusterrole failed")
-	//        return ctrl.Result{}, err
-	//    }
-	//} else {
-	//    if r.Update(ctx, clusterRole); err != nil {
-	//        logger.Error(err, "update clusterrole failed")
-	//        return ctrl.Result{}, err
-	//    }
-	//    //logger.Info("Successfully update clusterrole/" + clusterRole.GetName())
-	//}
+	// =========================
+	// reconcile ClusterRole
+	// =========================
+	// Construct a clusterrole object.
+	clusterRole := r.clusterRoleForBackup(backupObj)
+	namespacedName = apitypes.NamespacedName{Namespace: req.NamespacedName.Namespace, Name: "horusctl-role"}
+	// get the clusterrole resource.
+	if err := r.Get(ctx, namespacedName, &rbacv1.ClusterRole{}); err != nil {
+		if apierrors.IsNotFound(err) {
+			if err := r.Create(ctx, clusterRole); err != nil {
+				logger.Error(err, "create clusterrole failed")
+				return ctrl.Result{}, err
+			}
+			logger.Info("Successfully create clusterrole/" + clusterRole.GetName())
+			return ctrl.Result{Requeue: true}, nil
+		} else {
+			logger.Error(err, "get clusterrole failed")
+			return ctrl.Result{}, err
+		}
+	} else {
+		if r.Update(ctx, clusterRole); err != nil {
+			logger.Error(err, "update clusterrole failed")
+			return ctrl.Result{}, err
+		}
+		//logger.Info("Successfully update clusterrole/" + clusterRole.GetName())
+	}
 
-	//// =========================
-	//// reconcile ClusterRoleBinding
-	//// =========================
-	//// Construct a clusterrolebinding object.
-	//clusterRoleBinding := r.clusterRoleBindingForBackup(backupObj)
-	//namespacedName = apitypes.NamespacedName{Namespace: req.NamespacedName.Namespace, Name: fmt.Sprintf("horusctl-%s-binding", req.NamespacedName.Namespace)}
-	//// get the clusterrolebinding resource.
-	//if err := r.Get(ctx, namespacedName, &rbacv1.ClusterRoleBinding{}); err != nil {
-	//    if apierrors.IsNotFound(err) {
-	//        if err := r.Create(ctx, clusterRoleBinding); err != nil {
-	//            logger.Error(err, "create clusterrolebinding failed")
-	//            return ctrl.Result{}, err
-	//        }
-	//        logger.Info("Successfully create clusterrolebinding/" + clusterRoleBinding.GetName())
-	//        return ctrl.Result{Requeue: true}, nil
-	//    } else {
-	//        logger.Error(err, "get clusterrolebinding failed")
-	//        return ctrl.Result{}, err
-	//    }
-	//} else {
-	//    if r.Update(ctx, clusterRoleBinding); err != nil {
-	//        logger.Error(err, "update clusterrolebinding failed")
-	//        return ctrl.Result{}, err
-	//    }
-	//    //logger.Info("Successfully update clusterrolebinding/" + clusterRoleBinding.GetName())
-	//}
+	// =========================
+	// reconcile ClusterRoleBinding
+	// =========================
+	// Construct a clusterrolebinding object.
+	clusterRoleBinding := r.clusterRoleBindingForBackup(backupObj)
+	namespacedName = apitypes.NamespacedName{Namespace: req.NamespacedName.Namespace, Name: fmt.Sprintf("horusctl-%s-binding", req.NamespacedName.Namespace)}
+	// get the clusterrolebinding resource.
+	if err := r.Get(ctx, namespacedName, &rbacv1.ClusterRoleBinding{}); err != nil {
+		if apierrors.IsNotFound(err) {
+			if err := r.Create(ctx, clusterRoleBinding); err != nil {
+				logger.Error(err, "create clusterrolebinding failed")
+				return ctrl.Result{}, err
+			}
+			logger.Info("Successfully create clusterrolebinding/" + clusterRoleBinding.GetName())
+			return ctrl.Result{Requeue: true}, nil
+		} else {
+			logger.Error(err, "get clusterrolebinding failed")
+			return ctrl.Result{}, err
+		}
+	} else {
+		if r.Update(ctx, clusterRoleBinding); err != nil {
+			logger.Error(err, "update clusterrolebinding failed")
+			return ctrl.Result{}, err
+		}
+		//logger.Info("Successfully update clusterrolebinding/" + clusterRoleBinding.GetName())
+	}
 
 	//// Check ClusterRole, Apply method will create it if not exist, update it if already exists.
 	//logrus.Info("create clusterrole")
