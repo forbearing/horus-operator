@@ -3,6 +3,7 @@ package util
 import (
 	"fmt"
 
+	"github.com/forbearing/horus-operator/pkg/types"
 	"github.com/forbearing/k8s/util/labels"
 	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -36,15 +37,16 @@ var (
 )
 
 var LabelMap = map[string]string{
-	"app":                          "horus",
-	"app.kubernetes.io/name":       "horus",
-	"app.kubernetes.io/instance":   "",
-	"app.kubernetes.io/component":  "",
-	"app.kubernetes.io/part-of":    "horus",
-	"app.kubernetes.io/managed-by": "horus-operator",
+	//"app":                "horus",
+	//types.LabelName:      "horus",
+	//types.LabelInstance:  "",
+	//types.LabelComponent: "",
+	types.LabelPartOf:    "horus",
+	types.LabelManagedBy: "horus-operator",
 }
 
-func WithRecommendedLabels(object runtime.Object) {
+// SetRecommendedLabels
+func SetRecommendedLabels(object runtime.Object) {
 	if object == nil {
 		return
 	}
