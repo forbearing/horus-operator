@@ -284,7 +284,6 @@ func (r *BackupReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 // reconcileServiceAccount
 func (r *BackupReconciler) reconcileServiceAccount() error {
-
 	return nil
 }
 
@@ -300,7 +299,6 @@ func (r *BackupReconciler) reconcileClusterRoleBinding() error {
 
 // reconcileCronJob
 func (r *BackupReconciler) reconcileCronJob() error {
-
 	return nil
 }
 
