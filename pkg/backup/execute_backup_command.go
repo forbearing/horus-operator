@@ -33,7 +33,6 @@ func executeBackupCommand(backupObj *storagev1alpha1.Backup, execPod *corev1.Pod
 	}
 	if len(meta.pvname) == 0 {
 		return errors.New("persistentvolume name is empty, skip backup")
-
 	}
 	clusterName := backupObj.Spec.Cluster
 	if len(clusterName) == 0 {
