@@ -107,6 +107,11 @@ func (r *BackupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	if err := r.Get(ctx, req.NamespacedName, backupObj); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
+	// Add finalizers when add Backup object
+	// Delete finalizers and delete external clusterrolebinding when delete Backup object.
+	if err := r.handleFinalizer(ctx, backupObj); err != nil {
+		return ctrl.Result{}, err
+	}
 
 	// =========================
 	// reconcile ServiceAccount
