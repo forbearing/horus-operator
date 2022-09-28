@@ -34,19 +34,6 @@ rules:
   - traffics/status
   verbs:
   - get
-- apiGroups:
-  - rbac.authorization.k8s.io
-  resources:
-  - clusterrolebindings
-  - clusterroles
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
 # permissions for horusctl to create/update/delete deployments,
 # and for horusctl-operator-controller-manager to create namespaces.
 - apiGroups:
