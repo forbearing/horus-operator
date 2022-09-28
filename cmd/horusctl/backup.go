@@ -1,10 +1,9 @@
 package horusctl
 
 import (
-	"context"
-
 	"github.com/forbearing/horus-operator/pkg/backup"
 	"github.com/forbearing/horus-operator/pkg/logger"
+	"github.com/forbearing/k8s/util/signals"
 	"github.com/spf13/cobra"
 )
 
@@ -20,7 +19,7 @@ var (
 			logger.Init()
 
 			for _, arg := range args {
-				backup.Do(context.TODO(), namespace, arg)
+				backup.Do(signals.NewSignalContext(), namespace, arg)
 			}
 		},
 	}
