@@ -54,8 +54,32 @@ func TrafficPredicate() predicate.Predicate {
 // ServiceAccountPredicate
 func ServiceAccountPredicate() predicate.Predicate {
 	return predicate.Funcs{
-		CreateFunc: func(e event.CreateEvent) bool { return labels.Has(e.Object, types.LabelPairPartOf) },
+		CreateFunc: func(e event.CreateEvent) bool { return labels.Has(e.Object, types.LabelPairManagedBy) },
 		UpdateFunc: func(e event.UpdateEvent) bool { return e.ObjectOld.GetGeneration() != e.ObjectNew.GetGeneration() },
 		DeleteFunc: func(e event.DeleteEvent) bool { return !e.DeleteStateUnknown },
+	}
+}
+
+// ClusterRolePredicate
+// Backup as namespace-scoped resource cannot owns/control cluster-scoped resource.
+// When ClusterRole was deleted, horus-operator-controller-manager couldn't recreate it again.
+// We should reconcile agin to recreate the ClusterRole when we watch ClusterRole deleted event.
+func ClusterRolePredicate() predicate.Predicate {
+	return predicate.Funcs{
+		CreateFunc: func(e event.CreateEvent) bool { return labels.Has(e.Object, types.LabelPairManagedBy) },
+		UpdateFunc: func(e event.UpdateEvent) bool { return e.ObjectOld.GetGeneration() != e.ObjectNew.GetGeneration() },
+		//DeleteFunc: func(e event.DeleteEvent) bool { return !e.DeleteStateUnknown },
+	}
+}
+
+// ClusterRoleBindingPredicate
+// Backup as namespace-scoped resource cannot owns/control cluster-scoped resource.
+// When ClusterRoleBinding was deleted, horus-operator-controller-manager couldn't recreate it again.
+// We should reconcile agin to recreate the ClusterRoleBinding when we watch ClusterRole deleted event.
+func ClusterRoleBindingPredicate() predicate.Predicate {
+	return predicate.Funcs{
+		CreateFunc: func(e event.CreateEvent) bool { return labels.Has(e.Object, types.LabelPairManagedBy) },
+		UpdateFunc: func(e event.UpdateEvent) bool { return e.ObjectOld.GetGeneration() != e.ObjectNew.GetGeneration() },
+		//DeleteFunc: func(e event.DeleteEvent) bool { return !e.DeleteStateUnknown },
 	}
 }
