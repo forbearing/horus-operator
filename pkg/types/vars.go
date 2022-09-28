@@ -32,8 +32,13 @@ var (
 	AnnotationUpdatedTime   = "hybfkuf.io/updatedAt"
 	AnnotationRestartedTime = "hybfkuf.io/restartedAt"
 
-	LabelPairPartOf    = "app.kubernetes.io/part-of=horus"
-	LabelPairManagedBy = "app.kubernetes.io/managed-by=horus-operator"
+	LabelName          = "app.kubernetes.io/name"
+	LabelInstance      = "app.kubernetes.io/instance"
+	LabelComponent     = "app.kubernetes.io/component"
+	LabelPartOf        = "app.kubernetes.io/part-of"
+	LabelManagedBy     = "app.kubernetes.io/managed-by"
+	LabelPairPartOf    = fmt.Sprintf("%s=%s", LabelPartOf, "horus")
+	LabelPairManagedBy = fmt.Sprintf("%s=%s", LabelManagedBy, "horus-operator")
 )
 
 var (
