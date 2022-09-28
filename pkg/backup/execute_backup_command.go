@@ -25,9 +25,6 @@ func executeBackupCommand(backupObj *storagev1alpha1.Backup, execPod *corev1.Pod
 		costedTime = time.Now().UTC().Sub(beginTime)
 	}()
 
-	operatorNamespace := util.GetOperatorNamespace()
-	podHandler.ResetNamespace(operatorNamespace)
-
 	if len(meta.pvdir) == 0 {
 		return errors.New("persistentvolume directory is empty, skip backup")
 	}
@@ -54,6 +51,8 @@ func executeBackupCommand(backupObj *storagev1alpha1.Backup, execPod *corev1.Pod
 	cmdInitRepo := res.Command(restic.Init{}).String()
 	cmdBackup := res.Command(restic.Backup{Tag: tags, Host: clusterName}.SetArgs(pvpath)).String()
 
+	operatorNamespace := util.GetOperatorNamespace()
+	podHandler.ResetNamespace(operatorNamespace)
 	// if `restic list keys` failed, it's means that the rstic repository not exist,
 	// we should execute `restic init` command to init restic repository.
 	logger.Debug(cmdCheckRepo)
@@ -65,6 +64,7 @@ func executeBackupCommand(backupObj *storagev1alpha1.Backup, execPod *corev1.Pod
 		}
 	}
 	logger.Debug(cmdBackup)
+	// execute `restic backup` command to backup pvc data to storage.
 	if err := podHandler.WithNamespace(operatorNamespace).ExecuteWithStream(execPod.GetName(), "", strings.Split(cmdBackup, " "), os.Stdin, io.Discard, io.Discard); err != nil {
 		return fmt.Errorf("restic backup pvc/%s failed, maybe the directory/file of %s do not exist in k8s node", pvc, pvpath)
 	}
