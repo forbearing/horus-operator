@@ -124,9 +124,8 @@ func Do(ctx context.Context, namespace, name string) error {
 		logger.WithField("cost", time.Now().Sub(begin).String()).Infof("Successfully backup all pvc to %s", storage)
 	}
 
-	logger.WithField("cost", time.Now().Sub(begin).String()).
-		Infof("Successfully backup %s/%s", backupFrom.Resource, backupFrom.Name)
-	return err
+	logger.WithField("cost", time.Now().Sub(begin).String()).Infof("Successfully backup %s/%s", backupFrom.Resource, backupFrom.Name)
+	return nil
 }
 
 // The structured object for pv metadata is named pvdataMeta.
