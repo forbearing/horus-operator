@@ -14,9 +14,9 @@ func BackupPredicate() predicate.Predicate {
 		UpdateFunc: func(e event.UpdateEvent) bool { return e.ObjectOld.GetGeneration() != e.ObjectNew.GetGeneration() },
 		// Evaluates to false if the object has confirmed deleted.
 		// But we should hanle Delete event to delete external ClusterRoleBindings
-		DeleteFunc: func(e event.DeleteEvent) bool {
-			return !e.DeleteStateUnknown
-		},
+		//DeleteFunc: func(e event.DeleteEvent) bool {
+		//    return !e.DeleteStateUnknown
+		//},
 	}
 }
 
