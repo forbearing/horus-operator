@@ -1,7 +1,7 @@
 package template
 
 var (
-	HorusctlForBackup = `
+	CronJobForBackup = `
 apiVersion: batch/v1
 kind: CronJob
 metadata:
