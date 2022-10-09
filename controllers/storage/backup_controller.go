@@ -255,29 +255,9 @@ func (r *BackupReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-// reconcileServiceAccount
-func (r *BackupReconciler) reconcileServiceAccount() error {
-	return nil
-}
-
-// reconcileClusterRole
-func (r *BackupReconciler) reconcileClusterRole() error {
-	return nil
-}
-
-// reconcileClusterRoleBinding
-func (r *BackupReconciler) reconcileClusterRoleBinding() error {
-	return nil
-}
-
-// reconcileCronJob
-func (r *BackupReconciler) reconcileCronJob() error {
-	return nil
-}
-
 // cronJobForBackup construct a *batch1.CronJob resource that owned/controlled by the Backup resource.
 func (r *BackupReconciler) cronJobForBackup(ctx context.Context, backupObj *storagev1alpha1.Backup) *batchv1.CronJob {
-	cjData, err := template.Parse(template.HorusctlForBackup, backupObj)
+	cjData, err := template.Parse(template.CronJobForBackup, backupObj)
 	if err != nil {
 		r.Log.Error(err, "parse cronjob template failed")
 		os.Exit(1)
