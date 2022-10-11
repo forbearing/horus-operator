@@ -4,7 +4,7 @@ go 1.18
 
 require (
 	github.com/forbearing/k8s v0.11.8
-	github.com/forbearing/restic v1.4.3
+	github.com/forbearing/restic v1.4.4
 	github.com/go-logr/logr v1.2.3
 	github.com/minio/minio-go/v7 v7.0.36
 	github.com/onsi/ginkgo v1.16.5
