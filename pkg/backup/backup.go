@@ -57,9 +57,8 @@ var (
 )
 
 var (
-	ErrResourceType = errors.New("Backup.spec.backupFrom.resource field value must be pod, deployment, statefulset or daemonset")
-	logger          = logrus.WithFields(logrus.Fields{})
-	costedTime      time.Duration
+	logger     = logrus.WithFields(logrus.Fields{})
+	costedTime time.Duration
 )
 
 // Do start to backup k8s pod/deployment/statefulset/daemonset defined in Backup object
@@ -78,7 +77,7 @@ func Do(ctx context.Context, namespace, name string) error {
 	unstructObj, err := dynHandler.WithNamespace(namespace).WithGVK(gvk).Get(name)
 	if err != nil {
 		err = errors.Wrapf(err, `dynamic handler get "%s.%s" resource object failed`, types.ResourceBackup, types.GroupStorage)
-		logger.Error(err)
+		logger.WithField("namespace", namespace).Error(err)
 		return err
 	}
 	backupObj := &storagev1alpha1.Backup{}
@@ -209,7 +208,7 @@ func getPvcpvMap(ctx context.Context, backupObj *storagev1alpha1.Backup) (map[st
 			return nil, errors.Wrap(err, "daemonset handler get pod failed")
 		}
 	default:
-		return nil, ErrResourceType
+		return nil, errors.New("Backup.spec.backupFrom.resource field value must be pod, deployment, statefulset or daemonset")
 	}
 	// podObjList contains all pods that managed/owned by the Deployment, StatefulSet or DaemonSet.
 	// we iterate over each pod to get its mounted persistentvolumeclaim(aka pvc),
