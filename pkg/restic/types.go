@@ -56,16 +56,30 @@ type Matche struct {
 // NodeLs represents the output of restic subcommand `ls`.
 // eg: `restic ls 871dafac --json`
 type NodeLs struct {
-	Name        string      `json:"name"`
-	Type        string      `json:"type"`
-	Path        string      `json:"path"`
-	UID         uint32      `json:"uid"`
-	GID         uint32      `json:"gid"`
+	UID uint32 `json:"uid"`
+	GID uint32 `json:"gid"`
+
+	// fields only for struct_type "node"
+	Name        string      `json:"name,omitempty"`
+	Type        string      `json:"type,omitempty"`
+	Path        string      `json:"path,omitempty"`
 	Size        uint64      `json:"size,omitempty"`
 	Mode        os.FileMode `json:"mode,omitempty"`
 	Permissions string      `json:"permissions,omitempty"`
 	ModTime     time.Time   `json:"mtime,omitempty"`
 	AccessTime  time.Time   `json:"atime,omitempty"`
 	ChangeTime  time.Time   `json:"ctime,omitempty"`
-	StructType  string      `json:"struct_type"` // "node"
+
+	// fields only for struct_type "snapshot"
+	Time     time.Time `json:"time,omitempty"`
+	Parent   string    `json:"parent,omitempty"`
+	Tree     string    `json:"tree,omitempty"`
+	Paths    []string  `json:"paths,omitempty"`
+	HostName string    `json:"hostname,omitempty"`
+	Username string    `json:"username,omitempty"`
+	Tags     []string  `json:"tags,omitempty"`
+	ID       string    `json:"id,omitempty"`
+	ShortID  string    `json:"short_id,omitempty"`
+
+	StructType string `json:"struct_type"` // "node" or "snapshot"
 }
