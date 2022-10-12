@@ -30,6 +30,7 @@ spec:
       nodeName: "%s"
       tolerations:
       - operator: Exists
+      terminationGracePeriodSeconds: 0
       containers:
       - name: backup-to-nfs
         image: "%s"
