@@ -24,7 +24,7 @@ var (
 			builder.SetLogFormat(logFormat)
 			logger.Init()
 
-			restic.Snapshots(signals.NewSignalContext(), types.Storage(storage), cluster, tags, os.Stdout)
+			restic.Snapshots(signals.NewSignalContext(), types.Storage(storage), cluster, tags, os.Stdout, false)
 		},
 	}
 )

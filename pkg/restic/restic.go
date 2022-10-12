@@ -21,7 +21,8 @@ var (
 	podHandler = pod.NewOrDie(ctx, "", "")
 )
 
-func Snapshots(ctx context.Context, storage types.Storage, cluster []string, tags []string, cmdOutput io.Writer) error {
+/// Snapshots execute `restic snapshots` within pod
+func Snapshots(ctx context.Context, storage types.Storage, cluster []string, tags []string, cmdOutput io.Writer, jsonOutputMode bool) error {
 	var (
 		err     error
 		execPod *corev1.Pod
@@ -38,8 +39,7 @@ func Snapshots(ctx context.Context, storage types.Storage, cluster []string, tag
 			logrus.Error(err)
 			return err
 		}
-		execPod = filterRunningPod(podsObj)
-		if execPod == nil {
+		if execPod = filterRunningPod(podsObj); execPod == nil {
 			err = errors.Wrapf(err, "not found running pod in namespace/%s with label %s", operatorNamespace, types.Backup2NFSDeployLabel)
 			logrus.Error(err)
 			return err
@@ -50,19 +50,36 @@ func Snapshots(ctx context.Context, storage types.Storage, cluster []string, tag
 			logrus.Error(err)
 			return err
 		}
-		execPod = filterRunningPod(podsObj)
-		if execPod == nil {
+		if execPod = filterRunningPod(podsObj); execPod == nil {
 			err = errors.Wrapf(err, "not found running pod in namespace/%s with label %s", operatorNamespace, types.Backup2MinioDeployLabel)
 			logrus.Error(err)
 			return err
 		}
+	case types.StorageS3:
+		logrus.Infof("not implemented storage type: %s", storage)
+		return nil
+	case types.StorageCephFS:
+		logrus.Infof("not implemented storage type: %s", storage)
+		return nil
+	case types.StorageSFTP:
+		logrus.Infof("not implemented storage type: %s", storage)
+		return nil
+	case types.StorageRClone:
+		logrus.Infof("not implemented storage type: %s", storage)
+		return nil
+	case types.StorageRestServer:
+		logrus.Infof("not implemented storage type: %s", storage)
+		return nil
 	default:
-		err := fmt.Errorf("not support storage type %s", storage)
+		err = fmt.Errorf("not support storage type: %s", storage)
 		logrus.Error(err)
 		return err
 	}
 
 	r := res.NewIgnoreNotFound(context.TODO(), &res.GlobalFlags{NoCache: true})
+	if jsonOutputMode {
+		r = res.NewIgnoreNotFound(context.TODO(), &res.GlobalFlags{NoCache: true, Json: true})
+	}
 	cmdSnapshot := r.Command(res.Snapshots{Tag: tags, Host: cluster}).String()
 
 	logrus.Debugf(`execute command "%s" within "pod/%s"`, cmdSnapshot, execPod.GetName())
