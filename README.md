@@ -48,13 +48,16 @@ spec:
         scheme: http
         address: 10.250.16.21
         port: 9000
-      bucket: restic
-  timezone: 'Asia/Shanghai'
+      bucket: backup
+      folder: ""
+  timezone: Asia/Shanghai
   timeout: 10m
   cluster: mycluster
   credentialName: horus-credential
-  logLevel: info
-  logFormat: text
+  logLevel: info    # info or debug, default to info
+  logFormat: json   # json or text, default to json
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 1
 ```
 
 
