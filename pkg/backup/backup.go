@@ -7,6 +7,7 @@ import (
 
 	storagev1alpha1 "github.com/forbearing/horus-operator/apis/storage/v1alpha1"
 	"github.com/forbearing/horus-operator/pkg/types"
+	"github.com/forbearing/horus-operator/pkg/util"
 	"github.com/forbearing/k8s/daemonset"
 	"github.com/forbearing/k8s/deployment"
 	"github.com/forbearing/k8s/dynamic"
@@ -22,6 +23,17 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+)
+
+var (
+	DeployNameFindpvdir         string
+	DeployNameBackup2MinIO      string
+	DeployNameBackup2NFS        string
+	DeployNameBackup2S3         string
+	DeployNameBackup2CephFS     string
+	DeployNameBackup2Sftp       string
+	DeployNameBackup2RClone     string
+	DeployNameBackup2RestServer string
 )
 
 const (
@@ -65,6 +77,19 @@ var (
 // namespace is the k8s resource namespace
 // name is the k8s resource name
 func Do(ctx context.Context, namespace, name string) error {
+	// clean deployment
+	defer func() {
+		depHandler.ResetNamespace(util.GetOperatorNamespace())
+		depHandler.Delete(DeployNameFindpvdir)
+		depHandler.Delete(DeployNameBackup2NFS)
+		depHandler.Delete(DeployNameBackup2MinIO)
+		depHandler.Delete(DeployNameBackup2S3)
+		depHandler.Delete(DeployNameBackup2CephFS)
+		depHandler.Delete(DeployNameBackup2Sftp)
+		depHandler.Delete(DeployNameBackup2RClone)
+		depHandler.Delete(DeployNameBackup2RestServer)
+	}()
+
 	// ==============================
 	// 1. dynamic handler get Backup object
 	// ==============================
