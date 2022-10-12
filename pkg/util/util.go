@@ -1,6 +1,7 @@
 package util
 
 import (
+	"log"
 	"os"
 
 	"github.com/forbearing/horus-operator/pkg/types"
@@ -38,4 +39,14 @@ func GetOperatorNamespace() string {
 		return namespace
 	}
 	return types.DefaultOperatorNamespace
+}
+
+// GetInClusterNamespace get the operator currently running namespace by reading "inClusterNamespaceFile".
+// It will fatal and exit program if any error occurs,
+func GetInClusterNamespace() string {
+	data, err := os.ReadFile(namespaceFile)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return string(data)
 }
