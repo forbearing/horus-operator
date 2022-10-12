@@ -51,14 +51,14 @@ func createBackup2minioDepoyment(backupObj *storagev1alpha1.Backup, meta pvdataM
 		return nil, errors.Wrap(err, "make minio folder failed")
 	}
 
-	deployName := theDeployName(backup2minioName, backupObj, meta)
+	DeployNameBackup2MinIO := theDeployName(backup2minioName, backupObj, meta)
 	backup2minioBytes := []byte(fmt.Sprintf(
 		// the deployment template
 		template.Backup2minioDeploymentTemplate,
 		// deployment.metadata.name
 		// deployment.metadata.namespace
 		// deployment name, deployment namespace
-		deployName, operatorNamespace,
+		DeployNameBackup2MinIO, operatorNamespace,
 		// deployment.spec.template.metadata.annotations
 		// pod template annotations
 		types.AnnotationUpdatedTime, time.Now().Format(time.RFC3339),
