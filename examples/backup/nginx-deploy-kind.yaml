@@ -1,12 +1,12 @@
 apiVersion: storage.hybfkuf.io/v1alpha1
 kind: Backup
 metadata:
-  name: nginx-deploy
+  name: nginx-deploy-local
 spec:
   schedule: "*/1 * * * *"
   backupFrom:
     resource: deployment
-    name: nginx-deploy
+    name: nginx-deploy-local
   backupTo:
     nfs:
       server: 10.250.16.21
