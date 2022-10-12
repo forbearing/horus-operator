@@ -18,7 +18,7 @@ func createBackup2nfsDeployment(backupObj *storagev1alpha1.Backup, meta pvdataMe
 		costedTime = time.Now().UTC().Sub(beginTime)
 	}()
 
-	deployName := theDeployName(backup2nfsName, backupObj, meta)
+	DeployNameBackup2NFS := theDeployName(backup2nfsName, backupObj, meta)
 	operatorNamespace := util.GetOperatorNamespace()
 	backup2nfsBytes := []byte(fmt.Sprintf(
 		// the deployment template
@@ -26,7 +26,7 @@ func createBackup2nfsDeployment(backupObj *storagev1alpha1.Backup, meta pvdataMe
 		// deployment.metadata.name
 		// deployment.metadata.namespace
 		// deployment name, deployment namespace
-		deployName, operatorNamespace,
+		DeployNameBackup2NFS, operatorNamespace,
 		// deployment.spec.template.metadata.annotations
 		// pod template annotations
 		types.AnnotationUpdatedTime, time.Now().Format(time.RFC3339),
