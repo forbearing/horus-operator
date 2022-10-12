@@ -51,7 +51,7 @@ func createBackup2minioDepoyment(backupObj *storagev1alpha1.Backup, meta pvdataM
 		return nil, errors.Wrap(err, "make minio folder failed")
 	}
 
-	DeployNameBackup2MinIO := theDeployName(backup2minioName, backupObj, meta)
+	DeployNameBackup2MinIO = theDeployName(backup2minioName, backupObj, meta)
 	backup2minioBytes := []byte(fmt.Sprintf(
 		// the deployment template
 		template.Backup2minioDeploymentTemplate,

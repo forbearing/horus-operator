@@ -18,7 +18,7 @@ func createBackup2nfsDeployment(backupObj *storagev1alpha1.Backup, meta pvdataMe
 		costedTime = time.Now().UTC().Sub(beginTime)
 	}()
 
-	DeployNameBackup2NFS := theDeployName(backup2nfsName, backupObj, meta)
+	DeployNameBackup2NFS = theDeployName(backup2nfsName, backupObj, meta)
 	operatorNamespace := util.GetOperatorNamespace()
 	backup2nfsBytes := []byte(fmt.Sprintf(
 		// the deployment template
