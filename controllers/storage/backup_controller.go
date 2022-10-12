@@ -113,11 +113,6 @@ func (r *BackupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	if err := r.Get(ctx, req.NamespacedName, backupObj); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
-	// Add finalizers when add Backup object
-	// Delete finalizers and delete external clusterrolebinding when delete Backup object.
-	if err := r.handleFinalizer(ctx, backupObj); err != nil {
-		return ctrl.Result{}, err
-	}
 
 	// =========================
 	// reconcile ServiceAccount
@@ -150,6 +145,7 @@ func (r *BackupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 
 	// =========================
 	// reconcile ClusterRole
+	// NOTE: Backup object as namespace-scoped resource doesn't have ability to control/own ClusterRole resource.
 	// =========================
 	// Construct a clusterrole object.
 	clusterRole := r.clusterRoleForBackup(backupObj)
@@ -177,6 +173,7 @@ func (r *BackupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 
 	// =========================
 	// reconcile ClusterRoleBinding
+	// NOTE: Backup object as namespace-scoped resource doesn't have ability to control/own ClusterRoleBinding resource.
 	// =========================
 	// Construct a clusterrolebinding object.
 	clusterRoleBinding := r.clusterRoleBindingForBackup(backupObj)
@@ -233,6 +230,15 @@ func (r *BackupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			return ctrl.Result{}, err
 		}
 		logger.Info("Successfully udpate cronjob/" + cronJob.GetName())
+	}
+
+	// NOTE: handler finalizers must be after reconciling ClusterRoleBinding,
+	// otherwise ClusterRoleBinding resources will be recreated.
+	//
+	// Add finalizers when add Backup object
+	// Delete finalizers and delete external clusterrolebinding when delete Backup object.
+	if err := r.handleFinalizer(ctx, backupObj); err != nil {
+		return ctrl.Result{}, err
 	}
 
 	return ctrl.Result{}, nil
