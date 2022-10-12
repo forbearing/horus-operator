@@ -114,8 +114,6 @@ github.com/evanphx/json-patch/v5 v5.6.0 h1:b91NhWfaz02IuVxO9faSllyAtNXHMPkC5J8sJ
 github.com/evanphx/json-patch/v5 v5.6.0/go.mod h1:G79N1coSVB93tBe7j6PhzjmR3/2VvlbKOFpnXhI9Bw4=
 github.com/fatih/color v1.13.0 h1:8LOYc1KYPPmyKMuN8QV2DNRWNbLo6LZ0iLs8+mlH53w=
 github.com/flowstack/go-jsonschema v0.1.1/go.mod h1:yL7fNggx1o8rm9RlgXv7hTBWxdBM0rVwpMwimd3F3N0=
-github.com/forbearing/k8s v0.12.3 h1:o/b5DzIYGrkAqnE+KtMIDoHVfLw8fkA67wFITOLXYUI=
-github.com/forbearing/k8s v0.12.3/go.mod h1:YCYXovMMJGu+MJbvCg+uaF40EMd7oPB59pI6tAKnN5I=
 github.com/forbearing/k8s v0.12.4 h1:Mo5l/rxdEbz38nlL9VEgtxpDdLX5HLtq24iMOE6vujg=
 github.com/forbearing/k8s v0.12.4/go.mod h1:YCYXovMMJGu+MJbvCg+uaF40EMd7oPB59pI6tAKnN5I=
 github.com/forbearing/restic v1.4.4 h1:Ttq99J7/FrAlZF23Rl6g4W82Ul5sxDpWJXqQG9wxmZ0=
