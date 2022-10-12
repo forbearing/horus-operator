@@ -106,7 +106,7 @@ type BackupReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.12.1/pkg/reconcile
 func (r *BackupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	logger := r.Log.WithValues("Namespace", req.Namespace, "Name", req.Name)
+	logger := r.Log.WithValues("namespace", req.Namespace, "name", req.Name)
 
 	// Get backup object and ignore "NotFound" error.
 	backupObj := &storagev1alpha1.Backup{}
