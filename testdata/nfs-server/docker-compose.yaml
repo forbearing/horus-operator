@@ -1,0 +1,14 @@
+version: "3"
+services:
+  nfs-server:
+    image: erichough/nfs-server
+    privileged: true
+    #network_mode: host
+    ports:
+    - 2049:2049/udp
+    #- 111:111/udp
+    #- 32765:32765/udp
+    #- 32767:32767/udp
+    volumes:
+    - ./kubedata:/srv/nfs/kubedata
+    - ./exports:/etc/exports

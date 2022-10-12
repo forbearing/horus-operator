@@ -1,0 +1,1 @@
+/srv/nfs/kubedata       *(rw,sync,insecure,no_subtree_check,no_root_squash,no_all_squash)
