@@ -25,14 +25,14 @@ func createFindpvdirDeployment(backupObj *storagev1alpha1.Backup, meta pvdataMet
 	operatorNamespace := util.GetOperatorNamespace()
 	podHandler.ResetNamespace(operatorNamespace)
 
-	deployName := theDeployName(findpvdirName, backupObj, meta)
+	DeployNameFindpvdir = theDeployName(findpvdirName, backupObj, meta)
 	findpvdirBytes := []byte(fmt.Sprintf(
 		// the deployment template
 		template.FindpvdirDeploymentTemplate,
 		// deployment.metadata.name
 		// deployment.metadata.namespace
 		// deployment name, deployment namespace
-		deployName, operatorNamespace,
+		DeployNameFindpvdir, operatorNamespace,
 		// deployment.spec.template.metadata.annotations
 		// pod template annotations
 		types.AnnotationUpdatedTime, time.Now().Format(time.RFC3339),
@@ -74,7 +74,7 @@ func createFindpvdirDeployment(backupObj *storagev1alpha1.Backup, meta pvdataMet
 	cmdOutput := new(bytes.Buffer)
 	for i := 1; i <= 12; i++ {
 		if err := podHandler.ExecuteWithStream(execPod.GetName(), "", cmdFindpvdir, os.Stdin, cmdOutput, io.Discard); err != nil {
-			return "", errors.Wrapf(err, "%s find the persistentvolume data directory failed", deployName)
+			return "", errors.Wrapf(err, "%s find the persistentvolume data directory failed", DeployNameFindpvdir)
 		}
 		if len(strings.TrimSpace(cmdOutput.String())) != 0 {
 			break
