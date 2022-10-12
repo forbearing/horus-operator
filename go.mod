@@ -3,7 +3,7 @@ module github.com/forbearing/horus-operator
 go 1.18
 
 require (
-	github.com/forbearing/k8s v0.12.3
+	github.com/forbearing/k8s v0.12.4
 	github.com/forbearing/restic v1.4.4
 	github.com/go-logr/logr v1.2.3
 	github.com/minio/minio-go/v7 v7.0.36
