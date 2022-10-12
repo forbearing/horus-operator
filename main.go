@@ -47,11 +47,11 @@ var (
 	scheme   = runtime.NewScheme()
 	setupLog = ctrl.Log.WithName("setup")
 	//managerLog   = logr.New(log.NewDelegatingLogSink(log.NullLogSink{})).WithValues("operator", "horus-operator") // manager logger remove all key/value.
-	backupLog    = ctrl.Log.WithValues("Group", types.GroupStorage, "Kind", types.KindBackup)
-	restoreLog   = ctrl.Log.WithValues("Group", types.GroupStorage, "Kind", types.KindRestore)
-	cloneLog     = ctrl.Log.WithValues("Group", types.GroupStorage, "Kind", types.KindClone)
-	migrationLog = ctrl.Log.WithValues("Group", types.GroupStorage, "Kind", types.KindMigration)
-	trafficLog   = ctrl.Log.WithValues("Group", types.GroupNetworking, "Kind", types.KindTraffic)
+	backupLog    = ctrl.Log.WithValues("group", types.GroupStorage, "kind", types.KindBackup)
+	restoreLog   = ctrl.Log.WithValues("group", types.GroupStorage, "kind", types.KindRestore)
+	cloneLog     = ctrl.Log.WithValues("group", types.GroupStorage, "kind", types.KindClone)
+	migrationLog = ctrl.Log.WithValues("group", types.GroupStorage, "kind", types.KindMigration)
+	trafficLog   = ctrl.Log.WithValues("group", types.GroupNetworking, "kind", types.KindTraffic)
 )
 
 func init() {
