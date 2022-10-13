@@ -9,13 +9,15 @@ metadata:
   namespace: "%s"
   labels:
     app.kubernetes.io/name: backup-to-minio
-    app.kubernetes.io/part-of: horus-operator
+    app.kubernetes.io/part-of: horus
+    app.kubernetes.io/managed-by: horus-operator
 spec:
   replicas: 1
   selector:
     matchLabels:
       app.kubernetes.io/name: backup-to-minio
-      app.kubernetes.io/part-of: horus-operator
+      app.kubernetes.io/part-of: horus
+      app.kubernetes.io/managed-by: horus-operator
   template:
     metadata:
       annotations:
@@ -25,8 +27,8 @@ spec:
         app.kubernetes.io/name: backup-to-minio
         app.kubernetes.io/role: backup
         app.kubernetes.io/backup-method: restic
-        app.kubernetes.io/part-of: horus-operator
-       
+        app.kubernetes.io/part-of: horus
+        app.kubernetes.io/managed-by: horus-operator
     spec:
       nodeName: "%s"
       tolerations:
