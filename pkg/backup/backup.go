@@ -45,16 +45,16 @@ const (
 	HostBackupToS3    = "backup-to-s3"
 	HostBackupToMinio = "backup-to-minio"
 
-	findpvdirName        = "findpvdir"
-	findpvdirImage       = "hybfkuf/findpvdir:latest"
-	backup2nfsName       = "backup-to-nfs"
-	backup2nfsImage      = "hybfkuf/backup-tools-restic:latest"
-	backup2minioName     = "backup-to-minio"
-	backup2minioImage    = backup2nfsImage
-	backup2sftpName      = "backup-to-sftp"
-	backup2sftpImage     = backup2nfsImage
-	secretMinioAccessKey = "MINIO_ACCESS_KEY"
-	secretMinioSecretKey = "MINIO_SECRET_KEY"
+	findpvdirName     = "findpvdir"
+	findpvdirImage    = "hybfkuf/findpvdir:latest"
+	backup2nfsName    = "backup-to-nfs"
+	backup2nfsImage   = "hybfkuf/backup-tools-restic:latest"
+	backup2minioName  = "backup-to-minio"
+	backup2minioImage = backup2nfsImage
+	backup2sftpName   = "backup-to-sftp"
+	backup2sftpImage  = backup2nfsImage
+	envMinioAccessKey = "MINIO_ACCESS_KEY"
+	envMinioSecretKey = "MINIO_SECRET_KEY"
 )
 
 var (
