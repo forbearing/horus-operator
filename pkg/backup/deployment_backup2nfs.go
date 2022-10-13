@@ -22,7 +22,7 @@ func createBackup2nfsDeployment(backupObj *storagev1alpha1.Backup, meta pvdataMe
 	operatorNamespace := util.GetOperatorNamespace()
 	backup2nfsBytes := []byte(fmt.Sprintf(
 		// the deployment template
-		template.Backup2nfsDeploymentTemplate,
+		template.TemplateBackup2nfs,
 		// deployment.metadata.name
 		// deployment.metadata.namespace
 		// deployment name, deployment namespace

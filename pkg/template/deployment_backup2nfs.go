@@ -1,7 +1,7 @@
 package template
 
 var (
-	Backup2nfsDeploymentTemplate = `
+	TemplateBackup2nfs = `
 apiVersion: apps/v1
 kind: Deployment
 metadata:
