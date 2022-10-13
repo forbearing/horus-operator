@@ -27,13 +27,13 @@ import (
 
 var (
 	DeployNameFindpvdir         string
-	DeployNameBackup2MinIO      string
-	DeployNameBackup2NFS        string
-	DeployNameBackup2S3         string
-	DeployNameBackup2CephFS     string
-	DeployNameBackup2Sftp       string
-	DeployNameBackup2RClone     string
-	DeployNameBackup2RestServer string
+	DeployNameBackup2minio      string
+	DeployNameBackup2nfs        string
+	DeployNameBackup2s3         string
+	DeployNameBackup2cephfs     string
+	DeployNameBackup2sftp       string
+	DeployNameBackup2rclone     string
+	DeployNameBackup2restserver string
 )
 
 const (
@@ -81,13 +81,13 @@ func Do(ctx context.Context, namespace, name string) error {
 	defer func() {
 		depHandler.ResetNamespace(util.GetOperatorNamespace())
 		depHandler.Delete(DeployNameFindpvdir)
-		depHandler.Delete(DeployNameBackup2NFS)
-		depHandler.Delete(DeployNameBackup2MinIO)
-		depHandler.Delete(DeployNameBackup2S3)
-		depHandler.Delete(DeployNameBackup2CephFS)
-		depHandler.Delete(DeployNameBackup2Sftp)
-		depHandler.Delete(DeployNameBackup2RClone)
-		depHandler.Delete(DeployNameBackup2RestServer)
+		depHandler.Delete(DeployNameBackup2nfs)
+		depHandler.Delete(DeployNameBackup2minio)
+		depHandler.Delete(DeployNameBackup2s3)
+		depHandler.Delete(DeployNameBackup2cephfs)
+		depHandler.Delete(DeployNameBackup2sftp)
+		depHandler.Delete(DeployNameBackup2rclone)
+		depHandler.Delete(DeployNameBackup2restserver)
 	}()
 
 	// ==============================
