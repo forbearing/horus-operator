@@ -125,7 +125,7 @@ func Do(ctx context.Context, namespace, name string) error {
 	// ==============================
 	begin = time.Now()
 	logger.Infof("Start backup %s/%s", backupFrom.Resource, backupFrom.Name)
-	pvcpvMap, err := getPvcpvMap(ctx, backupObj)
+	pvcpvMap, err := constructPvcpvMap(ctx, backupObj)
 	if err != nil {
 		logger.Error(err)
 		return err
@@ -181,8 +181,8 @@ type pvdataMeta struct {
 	pvname       string
 }
 
-// getPvcpvMap backup the k8s resource defined in Backup object to nfs storage.
-func getPvcpvMap(ctx context.Context, backupObj *storagev1alpha1.Backup) (map[string]pvdataMeta, error) {
+// constructPvcpvMap construct a map[string]pvdataMeta
+func constructPvcpvMap(ctx context.Context, backupObj *storagev1alpha1.Backup) (map[string]pvdataMeta, error) {
 	beginTime := time.Now().UTC()
 	defer func() {
 		costedTime = time.Now().UTC().Sub(beginTime)
