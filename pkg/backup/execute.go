@@ -12,7 +12,7 @@ import (
 	storagev1alpha1 "github.com/forbearing/horus-operator/apis/storage/v1alpha1"
 	"github.com/forbearing/horus-operator/pkg/types"
 	"github.com/forbearing/horus-operator/pkg/util"
-	"github.com/forbearing/restic"
+	res "github.com/forbearing/restic"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -45,11 +45,11 @@ func executeBackupCommand(backupObj *storagev1alpha1.Backup, execPod *corev1.Pod
 	}
 	logger.Debugf("the path of persistentvolume data in k8s node: %s", pvpath)
 	logger.Debugf("executing restic command to backup persistentvolume data within pod/%s", execPod.GetName())
-	res := restic.NewIgnoreNotFound(context.TODO(), &restic.GlobalFlags{NoCache: true})
+	r := res.NewIgnoreNotFound(context.TODO(), &res.GlobalFlags{NoCache: true})
 	tags := []string{string(backupObj.Spec.BackupFrom.Resource), backupObj.Namespace, backupObj.Spec.BackupFrom.Name, pvc}
-	cmdCheckRepo := res.Command(restic.List{}.SetArgs("keys")).String()
-	cmdInitRepo := res.Command(restic.Init{}).String()
-	cmdBackup := res.Command(restic.Backup{Tag: tags, Host: clusterName}.SetArgs(pvpath)).String()
+	cmdCheckRepo := r.Command(res.List{}.SetArgs("keys")).String()
+	cmdInitRepo := r.Command(res.Init{}).String()
+	cmdBackup := r.Command(res.Backup{Tag: tags, Host: clusterName}.SetArgs(pvpath)).String()
 
 	operatorNamespace := util.GetOperatorNamespace()
 	podHandler.ResetNamespace(operatorNamespace)
