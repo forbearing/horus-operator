@@ -34,8 +34,8 @@ func createBackup2minioDepoyment(backupObj *storagev1alpha1.Backup, meta pvdataM
 	if err != nil {
 		return nil, errors.Wrap(err, "secret handler get secret failed")
 	}
-	accessKey := string(secObj.Data[secretMinioAccessKey])
-	secretKey := string(secObj.Data[secretMinioSecretKey])
+	accessKey := string(secObj.Data[envMinioAccessKey])
+	secretKey := string(secObj.Data[envMinioSecretKey])
 
 	endpoint := address + ":" + strconv.Itoa(int(port))
 	resticRepo := "s3:" + scheme + "://" + endpoint + "/" + bucket
