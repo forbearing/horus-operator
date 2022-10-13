@@ -28,7 +28,7 @@ func createFindpvdirDeployment(backupObj *storagev1alpha1.Backup, meta pvdataMet
 	DeployNameFindpvdir = theDeployName(findpvdirName, backupObj, meta)
 	findpvdirBytes := []byte(fmt.Sprintf(
 		// the deployment template
-		template.FindpvdirDeploymentTemplate,
+		template.TemplateFindpvdir,
 		// deployment.metadata.name
 		// deployment.metadata.namespace
 		// deployment name, deployment namespace

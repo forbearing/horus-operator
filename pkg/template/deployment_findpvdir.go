@@ -1,7 +1,7 @@
 package template
 
 var (
-	FindpvdirDeploymentTemplate = `
+	TemplateFindpvdir = `
 apiVersion: apps/v1
 kind: Deployment
 metadata:
