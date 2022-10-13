@@ -1,7 +1,7 @@
 package template
 
 var (
-	Backup2minioDeploymentTemplate = `
+	TemplateBackup2minio = `
 apiVersion: apps/v1
 kind: Deployment
 metadata:
