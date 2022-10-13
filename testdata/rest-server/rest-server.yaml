@@ -6,7 +6,7 @@ metadata:
     app: rest-server
 spec:
   accessModes: [ReadWriteOnce]
-  storageClassName: nfs-sc
+  storageClassName: standard
   resources:
     requests:
       storage: 80Gi
