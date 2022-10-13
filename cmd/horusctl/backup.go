@@ -18,8 +18,8 @@ var (
 			builder.SetLogFormat(logFormat)
 			logger.Init()
 
-			for _, arg := range args {
-				backup.Do(signals.NewSignalContext(), namespace, arg)
+			for _, backupObj := range args {
+				backup.Do(signals.NewSignalContext(), namespace, backupObj)
 			}
 		},
 	}
