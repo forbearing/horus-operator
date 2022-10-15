@@ -144,7 +144,7 @@ More information can be found via the [Kubebuilder Documentation](https://book.k
 
 ![horus-operator-logs](docs/pics/horus-operator-logs.png)
 
-![backup-statefulset-1](docs/pics/backup-statefulset-1.png)
+![backup-statefulset-1](docs/pics/backup-deployment-1.png)
 
 ## License
 
