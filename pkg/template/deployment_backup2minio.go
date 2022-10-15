@@ -40,6 +40,8 @@ spec:
         env:
         - name: TZ
           value: %s
+        - name: STORAGE
+          value: %s
         - name: RESTIC_REPOSITORY
           value: %s
         - name: RESTIC_PASSWORD
