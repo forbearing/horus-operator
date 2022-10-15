@@ -55,6 +55,8 @@ const (
 	backup2sftpImage  = backup2nfsImage
 	envMinioAccessKey = "MINIO_ACCESS_KEY"
 	envMinioSecretKey = "MINIO_SECRET_KEY"
+	envSftpUsername   = "SFTP_USERNAME"
+	envSftpPassword   = "SFTP_PASSWORD"
 )
 
 var (
