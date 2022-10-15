@@ -63,16 +63,36 @@ spec:
                       credentialNamespace:
                         type: string
                       monitors:
+                        description: 'Required: Monitors is a collection of Ceph monitors
+                          More info: https://examples.k8s.io/volumes/cephfs/README.md#how-to-use-it'
                         items:
                           type: string
                         type: array
                       path:
+                        description: 'Optional: Used as the mounted root, rather than
+                          the full Ceph tree, default is /'
+                        type: string
+                      readonly:
+                        description: 'Optional: Defaults to false (read/write). ReadOnly
+                          here will force the ReadOnly setting in VolumeMounts. More
+                          info: https://examples.k8s.io/volumes/cephfs/README.md#how-to-use-it'
+                        type: boolean
+                      secretFile:
+                        description: 'Optional: SecretFile is the path to key ring
+                          for User, default is /etc/ceph/user.secret More info: https://examples.k8s.io/volumes/cephfs/README.md#how-to-use-it'
+                        type: string
+                      secretRef:
+                        description: 'Optional: SecretRef is reference to the authentication
+                          secret for User, default is empty. More info: https://examples.k8s.io/volumes/cephfs/README.md#how-to-use-it'
+                        type: string
+                      user:
+                        description: 'Optional: User is the rados user name, default
+                          is admin More info: https://examples.k8s.io/volumes/cephfs/README.md#how-to-use-it'
                         type: string
                     required:
                     - credentialName
                     - credentialNamespace
                     - monitors
-                    - path
                     type: object
                   minio:
                     description: backup to MinIO
@@ -82,13 +102,15 @@ spec:
                       endpoint:
                         properties:
                           address:
+                            description: minio domain name or ip address, no default.
                             type: string
                           port:
-                            description: port default to `9000`
+                            description: minio exposed port, default to `9000`.
                             format: int32
                             type: integer
                           scheme:
-                            description: scheme default to `https`
+                            description: HTTP scheme use for connect to minio, default
+                              to `https`.
                             type: string
                         required:
                         - address
@@ -107,7 +129,7 @@ spec:
                     description: backup to nfs server
                     properties:
                       path:
-                        description: path that is exported by the NFS server.
+                        description: path is exported by the NFS server.
                         type: string
                       server:
                         description: server is the hostname or IP address of the NFS
@@ -496,24 +518,18 @@ spec:
                     description: backup to sftp
                     properties:
                       address:
-                        type: string
-                      credentialName:
-                        description: 'secret.data should contain two field: username,
-                          password'
-                        type: string
-                      credentialNamespace:
+                        description: sftp server hostname or ip address.
                         type: string
                       path:
+                        description: sftp server path.
                         type: string
                       port:
+                        description: sftp server port, default to 22.
                         format: int32
                         type: integer
                     required:
                     - address
-                    - credentialName
-                    - credentialNamespace
                     - path
-                    - port
                     type: object
                 type: object
               cluster:
@@ -523,7 +539,8 @@ spec:
                 description: "CredentialName is a k8s secret name and must exist in
                   the same namespace as the horus-operator. \n All available envriable
                   variables: RESTIC_PASSWORD:\t\t\trestic password MINIO_ACCESS_KEY:\t\tminio
-                  access key MINIO_SECRET_KEY:\t\tminio secret key"
+                  access key MINIO_SECRET_KEY:\t\tminio secret key SFTP_USERNAME:\t\t\tsftp
+                  username SFTP_PASSWORD:\t\t\tsftp password"
                 type: string
               env:
                 description: Environment variable passed to backup program.
