@@ -9,7 +9,6 @@ import (
 	"github.com/forbearing/horus-operator/pkg/types"
 	"github.com/forbearing/horus-operator/pkg/util"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -43,7 +42,6 @@ func createBackup2sftpDeployment(backupObj *storagev1alpha1.Backup, meta pvdataM
 	if err := util.MakeDirOnSftp(addr, port, user, pass, repoPath); err != nil {
 		return nil, errors.Wrap(err, "mkdir on sftp server failed")
 	}
-	logrus.Info(resticRepo)
 
 	DeployNameBackup2sftp = theDeployName(backup2sftpName, backupObj, meta)
 	credentialName := backupObj.Spec.CredentialName
