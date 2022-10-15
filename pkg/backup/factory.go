@@ -86,6 +86,11 @@ func backupFactory(storage types.Storage) backupFunc {
 				return err
 			}
 			logger.WithFields(logrus.Fields{"cost": costedTime.String()}).Debugf("create deployment/%s", theDeployName(backup2nfsName, backupObj, meta))
+		case types.StorageSFTP:
+			if execPod, err = createBackup2sftpDeployment(backupObj, meta); err != nil {
+				return err
+			}
+			logger.WithFields(logrus.Fields{"cost": costedTime.String()}).Debugf("create deployment/%s", theDeployName(backup2sftpName, backupObj, meta))
 		}
 
 		// execute restic command to backup persistentvolume data to remote storage within the pod.
