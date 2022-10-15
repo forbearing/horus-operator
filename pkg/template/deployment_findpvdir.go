@@ -9,20 +9,23 @@ metadata:
   namespace: %s
   labels:
     app.kubernetes.io/name: findpvdir
-    app.kubernetes.io/part-of: horus-operator
+    app.kubernetes.io/part-of: horus
+    app.kubernetes.io/managed-by: horus-operator
 spec:
   replicas: 1
   selector:
     matchLabels:
       app.kubernetes.io/name: findpvdir
-      app.kubernetes.io/part-of: horus-operator
+      app.kubernetes.io/part-of: horus
+      app.kubernetes.io/managed-by: horus-operator
   template:
     metadata:
       #annotations:
       #  %s: %s
       labels:
         app.kubernetes.io/name: findpvdir
-        app.kubernetes.io/part-of: horus-operator
+        app.kubernetes.io/part-of: horus
+        app.kubernetes.io/managed-by: horus-operator
     spec:
       nodeName: %s
       tolerations:
