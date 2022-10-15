@@ -36,7 +36,7 @@ func createBackup2nfsDeployment(backupObj *storagev1alpha1.Backup, meta pvdataMe
 		meta.nodeName, backup2nfsImage,
 		// deployment.spec.template.spec.containers.env
 		// the environment variables passed to pods
-		backupObj.Spec.TimeZone, resticRepo,
+		backupObj.Spec.TimeZone, types.StorageNFS, resticRepo,
 		// restic repository mount path
 		// deployment.spec.template.containers.env
 		backupObj.Spec.CredentialName, resticRepo,

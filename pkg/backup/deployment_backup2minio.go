@@ -68,7 +68,7 @@ func createBackup2minioDepoyment(backupObj *storagev1alpha1.Backup, meta pvdataM
 		meta.nodeName, backup2minioImage,
 		// deployment.spec.template.spec.containers.env
 		// the environment variables passed to pods
-		backupObj.Spec.TimeZone, resticRepo,
+		backupObj.Spec.TimeZone, types.StorageMinIO, resticRepo,
 		credentialName, credentialName, credentialName, credentialName, credentialName,
 	))
 	podObj, err := filterRunningPod(operatorNamespace, backup2minioBytes)
