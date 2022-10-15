@@ -50,6 +50,10 @@ spec:
         port: 9000
       bucket: backup
       folder: ""
+    sftp:
+      address: 10.250.16.21
+      port: 2222
+      path: /upload/restic
   timezone: Asia/Shanghai
   timeout: 10m
   cluster: mycluster
