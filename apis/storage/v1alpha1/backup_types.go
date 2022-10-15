@@ -67,6 +67,8 @@ type BackupSpec struct {
 	// RESTIC_PASSWORD:			restic password
 	// MINIO_ACCESS_KEY:		minio access key
 	// MINIO_SECRET_KEY:		minio secret key
+	// SFTP_USERNAME:			sftp username
+	// SFTP_PASSWORD:			sftp password
 	CredentialName string `json:"credentialName"`
 
 	// Log level for backup pvc, support "info", "debug", default to "text".
@@ -79,11 +81,11 @@ type BackupSpec struct {
 	// The number of successful finished jobs to retain. Value must be non-negative integer.
 	// Defaults to 3.
 	// +optional
-	SuccessfulJobsHistoryLimit int32 `json:"successfulJobsHistoryLimit"`
+	SuccessfulJobsHistoryLimit uint32 `json:"successfulJobsHistoryLimit"`
 	// The number of failed finished jobs to retain. Value must be non-negative integer.
 	// Defaults to 1.
 	// +optional
-	FailedJobsHistoryLimit int32 `json:"failedJobsHistoryLimit"`
+	FailedJobsHistoryLimit uint32 `json:"failedJobsHistoryLimit"`
 }
 
 // BackupFrom defines where the data should backup from
@@ -134,7 +136,7 @@ type BackupTo struct {
 type NFS struct {
 	// server is the hostname or IP address of the NFS server.
 	Server string `json:"server"`
-	// path that is exported by the NFS server.
+	// path is exported by the NFS server.
 	Path string `json:"path"`
 }
 
@@ -153,8 +155,31 @@ type PVC struct {
 }
 
 type CephFS struct {
+	// Required: Monitors is a collection of Ceph monitors More info:
+	// https://examples.k8s.io/volumes/cephfs/README.md#how-to-use-it
 	Monitors []string `json:"monitors" `
-	Path     string   `json:"path" `
+	// Optional: Used as the mounted root, rather than the full Ceph tree, default is /
+	// +optional
+	Path string `json:"path" `
+	// Optional: Defaults to false (read/write). ReadOnly here will force the
+	// ReadOnly setting in VolumeMounts. More info:
+	// https://examples.k8s.io/volumes/cephfs/README.md#how-to-use-it
+	// +optional
+	ReadOnly bool `json:"readonly"`
+	// Optional: SecretFile is the path to key ring for User, default is
+	// /etc/ceph/user.secret More info:
+	// https://examples.k8s.io/volumes/cephfs/README.md#how-to-use-it
+	// +optional
+	SecretFile string `json:"secretFile"`
+	// Optional: SecretRef is reference to the authentication secret for User,
+	// default is empty. More info:
+	// https://examples.k8s.io/volumes/cephfs/README.md#how-to-use-it
+	// +optional
+	SecretRef string `json:"secretRef"`
+	// Optional: User is the rados user name, default is admin More info:
+	// https://examples.k8s.io/volumes/cephfs/README.md#how-to-use-it
+	// +optional
+	User string `json:"user"`
 	// secet.data should containe three field: user, keyring, clusterID
 	CredentialName      string `json:"credentialName"`
 	CredentialNamespace string `json:"credentialNamespace"`
@@ -183,18 +208,19 @@ type MinIO struct {
 }
 
 type MinioEndpoint struct {
-	// scheme default to `https`
+	// HTTP scheme use for connect to minio, default to `https`.
 	// +optional
-	Scheme  string `json:"scheme"`
+	Scheme string `json:"scheme"`
+	// minio domain name or ip address, no default.
 	Address string `json:"address"`
-	// port default to `9000`
+	// minio exposed port, default to `9000`.
 	// +optional
-	Port int32 `json:"port"`
+	Port uint32 `json:"port"`
 }
 
 type RestServer struct {
 	Address string `json:"address"`
-	Port    int32  `json:"port"`
+	Port    uint32 `json:"port"`
 	Path    string `json:"path"`
 	// secret.data should contain two field: username, password
 	CredentialName      string `json:"credentialName"`
@@ -202,12 +228,13 @@ type RestServer struct {
 }
 
 type SFTP struct {
+	// sftp server hostname or ip address.
 	Address string `json:"address"`
-	Port    int32  `json:"port"`
-	Path    string `json:"path"`
-	// secret.data should contain two field: username, password
-	CredentialName      string `json:"credentialName"`
-	CredentialNamespace string `json:"credentialNamespace"`
+	// sftp server port, default to 22.
+	// +optional
+	Port uint32 `json:"port"`
+	// sftp server absolute path.
+	Path string `json:"path"`
 }
 
 type Rclone struct {
