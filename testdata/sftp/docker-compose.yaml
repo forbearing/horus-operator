@@ -1,0 +1,13 @@
+# ref: https://hub.docker.com/r/atmoz/sftp
+# RESTIC_PASSWORD="restic"; restic -r sftp://horus@10.250.16.21:2222//upload/restic init
+# RESTIC_PASSWORD="restic"; restic -r sftp://horus@10.250.16.21:2222//upload/restic init
+version: '3'
+services:
+  sftp:
+    image: atmoz/sftp
+    volumes:
+    - /data/upload:/home/horus/upload
+    ports:
+    - "2222:22"
+    command: horus:horus:1001
+    restart: always
