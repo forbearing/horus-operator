@@ -17,6 +17,8 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"time"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -246,7 +248,71 @@ type Rclone struct {
 type BackupStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
+	Conditions         []BackupCondition `json:"conditions"`
+	LastBackupTime     time.Time         `json:"lastBackupTime"`
+	NextBackupTime     time.Time         `json:"nextBackupTime"`
+	ObservedGeneration uint64            `json:"observedGeneration"`
+	Storage            []string          `json:"storage"`
+	Message            string            `json:"message"`
+	Reason             string            `json:"reason"`
+	ResourceType       string            `json:"resourceType"`
+	ResourceName       string            `json:"resourceName"`
 }
+
+// BackupCondition contains details for the current condition of this pod.
+type BackupCondition struct {
+	// Type is the type of the condition.
+	// More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#pod-conditions
+	Type BackupConditionType `json:"type" protobuf:"bytes,1,opt,name=type,casttype=BackupConditionType"`
+	// Status is the status of the condition.
+	// Can be True, False, Unknown.
+	// More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#pod-conditions
+	Status ConditionStatus `json:"status" protobuf:"bytes,2,opt,name=status,casttype=ConditionStatus"`
+	// Last time we probed the condition.
+	// +optional
+	LastProbeTime metav1.Time `json:"lastProbeTime,omitempty" protobuf:"bytes,3,opt,name=lastProbeTime"`
+	// Last time the condition transitioned from one status to another.
+	// +optional
+	LastTransitionTime metav1.Time `json:"lastTransitionTime,omitempty" protobuf:"bytes,4,opt,name=lastTransitionTime"`
+	// Unique, one-word, CamelCase reason for the condition's last transition.
+	// +optional
+	Reason string `json:"reason,omitempty" protobuf:"bytes,5,opt,name=reason"`
+	// Human-readable message indicating details about last transition.
+	// +optional
+	Message string `json:"message,omitempty" protobuf:"bytes,6,opt,name=message"`
+}
+
+// BackupConditionType is a valid value for PodCondition.Type
+type BackupConditionType string
+
+// These are built-in conditions of pod. An application may use a custom condition not listed here.
+const (
+	// ContainersReady indicates whether all containers in the pod are ready.
+	ContainersReady BackupConditionType = "ContainersReady"
+	// PodInitialized means that all init containers in the pod have started successfully.
+	PodInitialized BackupConditionType = "Initialized"
+	// PodReady means the pod is able to service requests and should be added to the
+	// load balancing pools of all matching services.
+	PodReady BackupConditionType = "Ready"
+	// PodScheduled represents status of the scheduling process for this pod.
+	PodScheduled BackupConditionType = "PodScheduled"
+	// AlphaNoCompatGuaranteeDisruptionTarget indicates the pod is about to be deleted due to a
+	// disruption (such as preemption, eviction API or garbage-collection).
+	// The constant is to be renamed once the name is accepted within the KEP-3329.
+	AlphaNoCompatGuaranteeDisruptionTarget BackupConditionType = "DisruptionTarget"
+)
+
+type ConditionStatus string
+
+// These are valid condition statuses. "ConditionTrue" means a resource is in the condition.
+// "ConditionFalse" means a resource is not in the condition. "ConditionUnknown" means kubernetes
+// can't decide if a resource is in the condition or not. In the future, we could add other
+// intermediate conditions, e.g. ConditionDegraded.
+const (
+	ConditionTrue    ConditionStatus = "True"
+	ConditionFalse   ConditionStatus = "False"
+	ConditionUnknown ConditionStatus = "Unknown"
+)
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
